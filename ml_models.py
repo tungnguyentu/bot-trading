@@ -194,8 +194,9 @@ class MLModel(ABC):
     def save_model(self):
         """Save the model to disk."""
         try:
-            model_path = os.path.join('models', f"{self.model_name}.joblib")
-            joblib.dump(self.model, model_path)
+            # Use the newer .keras format instead of .h5
+            model_path = os.path.join('models', f"{self.model_name}.keras")
+            self.model.save(model_path)
             
             # Save scaler
             scaler_path = os.path.join('models', f"{self.model_name}_scaler.joblib")
@@ -214,8 +215,21 @@ class MLModel(ABC):
     def load_model(self):
         """Load the model from disk."""
         try:
-            model_path = os.path.join('models', f"{self.model_name}.joblib")
-            self.model = joblib.load(model_path)
+            # Try loading the newer .keras format first
+            model_path = os.path.join('models', f"{self.model_name}.keras")
+            if os.path.exists(model_path):
+                self.model = load_model(model_path)
+            else:
+                # Fall back to the older .h5 format for backward compatibility
+                legacy_model_path = os.path.join('models', f"{self.model_name}.h5")
+                if os.path.exists(legacy_model_path):
+                    self.model = load_model(legacy_model_path)
+                    logger.info(f"Loaded legacy model format from {legacy_model_path}")
+                    # Save in the new format for future use
+                    self.save_model()
+                else:
+                    logger.error(f"No model file found at {model_path} or {legacy_model_path}")
+                    return False
             
             # Load scaler
             scaler_path = os.path.join('models', f"{self.model_name}_scaler.joblib")
@@ -411,7 +425,7 @@ class LSTMModel(MLModel):
         callbacks = [
             EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
             ModelCheckpoint(
-                filepath=os.path.join('models', f"{self.model_name}_best.h5"),
+                filepath=os.path.join('models', f"{self.model_name}_best.keras"),
                 monitor='val_loss',
                 save_best_only=True
             )
@@ -480,7 +494,8 @@ class LSTMModel(MLModel):
     def save_model(self):
         """Save the model to disk."""
         try:
-            model_path = os.path.join('models', f"{self.model_name}.h5")
+            # Use the newer .keras format instead of .h5
+            model_path = os.path.join('models', f"{self.model_name}.keras")
             self.model.save(model_path)
             
             # Save scaler
@@ -500,8 +515,21 @@ class LSTMModel(MLModel):
     def load_model(self):
         """Load the model from disk."""
         try:
-            model_path = os.path.join('models', f"{self.model_name}.h5")
-            self.model = load_model(model_path)
+            # Try loading the newer .keras format first
+            model_path = os.path.join('models', f"{self.model_name}.keras")
+            if os.path.exists(model_path):
+                self.model = load_model(model_path)
+            else:
+                # Fall back to the older .h5 format for backward compatibility
+                legacy_model_path = os.path.join('models', f"{self.model_name}.h5")
+                if os.path.exists(legacy_model_path):
+                    self.model = load_model(legacy_model_path)
+                    logger.info(f"Loaded legacy model format from {legacy_model_path}")
+                    # Save in the new format for future use
+                    self.save_model()
+                else:
+                    logger.error(f"No model file found at {model_path} or {legacy_model_path}")
+                    return False
             
             # Load scaler
             scaler_path = os.path.join('models', f"{self.model_name}_scaler.joblib")
