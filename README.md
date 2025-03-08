@@ -145,6 +145,24 @@ This will:
 
 For ensemble models, the CPU-only mode will skip the LSTM model and only use tree-based models (Random Forest and XGBoost) which are more efficient on CPU.
 
+### Suppressing TensorFlow Warnings
+
+If you're still seeing TensorFlow warnings, you can use one of the provided scripts to suppress them:
+
+#### Using the Python script:
+
+```
+python suppress_tf_warnings.py main.py train --model ensemble --symbol SOL/USDT --timeframe 1h --limit 1000 --cpu-only
+```
+
+#### Using the shell script:
+
+```
+./run_bot.sh main.py train --model ensemble --symbol SOL/USDT --timeframe 1h --limit 1000 --cpu-only
+```
+
+These scripts set the necessary environment variables to suppress TensorFlow warnings and run your command.
+
 ### Using ML for Trading
 
 ```
