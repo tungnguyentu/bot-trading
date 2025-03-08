@@ -13,11 +13,11 @@ API_KEY = os.getenv("API_KEY", "")
 API_SECRET = os.getenv("API_SECRET", "")
 
 # Trading settings
-SYMBOL = "BTC/USDT"
-TIMEFRAME = "1h"  # 1m, 5m, 15m, 1h, 4h, 1d
+SYMBOL = os.getenv("SYMBOL", "BTC/USDT")
+TIMEFRAME = os.getenv("TIMEFRAME", "1h")  # 1m, 5m, 15m, 1h, 4h, 1d
 
 # Strategy settings
-STRATEGY = "SMA"  # SMA, EMA, MACD, RSI, ML, ENSEMBLE
+STRATEGY = os.getenv("STRATEGY", "SMA")  # SMA, EMA, MACD, RSI, ML, ENSEMBLE
 SMA_SHORT = 20
 SMA_LONG = 50
 EMA_SHORT = 12
@@ -38,9 +38,15 @@ ML_HYPERPARAMETER_TUNING = False  # Whether to tune hyperparameters
 ML_HYPERPARAMETER_TRIALS = 50  # Number of trials for hyperparameter tuning
 
 # Risk management
-POSITION_SIZE = 0.1  # Percentage of available balance to use per trade
+POSITION_SIZE = float(os.getenv("POSITION_SIZE", "0.1"))  # Percentage of available balance to use per trade
+FIXED_POSITION_SIZE = float(os.getenv("FIXED_POSITION_SIZE", "0"))  # Fixed position size in quote currency (e.g., USDT)
+USE_FIXED_POSITION_SIZE = os.getenv("USE_FIXED_POSITION_SIZE", "false").lower() == "true"  # Whether to use fixed position size
 STOP_LOSS = 0.02  # 2% stop loss
 TAKE_PROFIT = 0.04  # 4% take profit
+
+# Leverage settings
+LEVERAGE = float(os.getenv("LEVERAGE", "1"))  # Leverage multiplier (1 = no leverage)
+USE_LEVERAGE = LEVERAGE > 1  # Whether to use leverage
 
 # Backtesting
 BACKTEST_START = "2023-01-01"
@@ -51,7 +57,7 @@ LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 LOG_FILE = "trading_bot.log"
 
 # Execution mode
-MODE = "paper"  # paper, live
+MODE = os.getenv("MODE", "paper")  # paper, live
 
 # Telegram notifications
 TELEGRAM_ENABLED = os.getenv("TELEGRAM_ENABLED", "false").lower() == "true"

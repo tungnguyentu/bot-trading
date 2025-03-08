@@ -101,10 +101,33 @@ def run_live_cmd(args):
     Args:
         args: Command line arguments
     """
+    # Set fixed position size if specified (either via --fixed-size or --invest)
+    if hasattr(args, 'invest') and args.invest:
+        config.USE_FIXED_POSITION_SIZE = True
+        config.FIXED_POSITION_SIZE = args.invest
+        logger.info(f"Using investment amount: {args.invest} {args.symbol.split('/')[1]}")
+    elif hasattr(args, 'fixed_size') and args.fixed_size:
+        config.USE_FIXED_POSITION_SIZE = True
+        config.FIXED_POSITION_SIZE = args.fixed_size
+        logger.info(f"Using fixed position size: {args.fixed_size} {args.symbol.split('/')[1]}")
+    
+    # Set leverage if specified
+    if args.leverage and args.leverage > 1:
+        config.LEVERAGE = args.leverage
+        logger.info(f"Using leverage: {args.leverage}x")
+    
     if args.schedule:
         schedule_bot(args.interval)
     else:
         exchange = Exchange()
+        
+        # Set leverage on exchange if specified
+        if args.leverage and args.leverage > 1:
+            try:
+                exchange.set_leverage(args.leverage, args.symbol)
+            except Exception as e:
+                logger.error(f"Failed to set leverage: {e}")
+        
         run_bot(exchange, args.strategy)
 
 def run_paper_cmd(args):
@@ -117,10 +140,33 @@ def run_paper_cmd(args):
     # Set mode to paper
     config.MODE = "paper"
     
+    # Set fixed position size if specified (either via --fixed-size or --invest)
+    if hasattr(args, 'invest') and args.invest:
+        config.USE_FIXED_POSITION_SIZE = True
+        config.FIXED_POSITION_SIZE = args.invest
+        logger.info(f"Using investment amount: {args.invest} {args.symbol.split('/')[1]}")
+    elif hasattr(args, 'fixed_size') and args.fixed_size:
+        config.USE_FIXED_POSITION_SIZE = True
+        config.FIXED_POSITION_SIZE = args.fixed_size
+        logger.info(f"Using fixed position size: {args.fixed_size} {args.symbol.split('/')[1]}")
+    
+    # Set leverage if specified
+    if args.leverage and args.leverage > 1:
+        config.LEVERAGE = args.leverage
+        logger.info(f"Using leverage: {args.leverage}x")
+    
     if args.schedule:
         schedule_bot(args.interval)
     else:
         exchange = Exchange()
+        
+        # Set leverage on exchange if specified
+        if args.leverage and args.leverage > 1:
+            try:
+                exchange.set_leverage(args.leverage, args.symbol)
+            except Exception as e:
+                logger.error(f"Failed to set leverage: {e}")
+        
         run_bot(exchange, args.strategy)
 
 def train_ml_model_cmd(args):
@@ -231,18 +277,30 @@ def main():
     backtest_parser.add_argument('--strategy', type=str, default=config.STRATEGY, help='Strategy to use')
     backtest_parser.add_argument('--start-date', type=str, default=config.BACKTEST_START, help='Start date (YYYY-MM-DD)')
     backtest_parser.add_argument('--end-date', type=str, default=config.BACKTEST_END, help='End date (YYYY-MM-DD)')
+    backtest_parser.add_argument('--symbol', type=str, default=config.SYMBOL, help='Trading pair symbol')
+    backtest_parser.add_argument('--fixed-size', type=float, help='Fixed position size in quote currency (e.g., 50 USDT)')
+    backtest_parser.add_argument('--invest', type=float, help='Investment amount in quote currency (e.g., 50 USDT)')
+    backtest_parser.add_argument('--leverage', type=float, default=1, help='Leverage to use (e.g., 2 for 2x leverage)')
     
     # Live trading command
     live_parser = subparsers.add_parser('live', help='Run live trading')
     live_parser.add_argument('--strategy', type=str, default=config.STRATEGY, help='Strategy to use')
     live_parser.add_argument('--schedule', action='store_true', help='Schedule the bot to run at intervals')
     live_parser.add_argument('--interval', type=int, default=1, help='Interval in minutes for scheduled runs')
+    live_parser.add_argument('--symbol', type=str, default=config.SYMBOL, help='Trading pair symbol')
+    live_parser.add_argument('--fixed-size', type=float, help='Fixed position size in quote currency (e.g., 50 USDT)')
+    live_parser.add_argument('--invest', type=float, help='Investment amount in quote currency (e.g., 50 USDT)')
+    live_parser.add_argument('--leverage', type=float, default=1, help='Leverage to use (e.g., 2 for 2x leverage)')
     
     # Paper trading command
     paper_parser = subparsers.add_parser('paper', help='Run paper trading')
     paper_parser.add_argument('--strategy', type=str, default=config.STRATEGY, help='Strategy to use')
     paper_parser.add_argument('--schedule', action='store_true', help='Schedule the bot to run at intervals')
     paper_parser.add_argument('--interval', type=int, default=1, help='Interval in minutes for scheduled runs')
+    paper_parser.add_argument('--symbol', type=str, default=config.SYMBOL, help='Trading pair symbol')
+    paper_parser.add_argument('--fixed-size', type=float, help='Fixed position size in quote currency (e.g., 50 USDT)')
+    paper_parser.add_argument('--invest', type=float, help='Investment amount in quote currency (e.g., 50 USDT)')
+    paper_parser.add_argument('--leverage', type=float, default=1, help='Leverage to use (e.g., 2 for 2x leverage)')
     
     # Train ML model command
     train_parser = subparsers.add_parser('train', help='Train a machine learning model')
@@ -257,6 +315,10 @@ def main():
     train_parser.add_argument('--trials', type=int, default=config.ML_HYPERPARAMETER_TRIALS, help='Number of trials for hyperparameter tuning')
     
     args = parser.parse_args()
+    
+    # Set symbol if specified
+    if hasattr(args, 'symbol') and args.symbol:
+        config.SYMBOL = args.symbol
     
     if args.command == 'backtest':
         run_backtest_cmd(args)

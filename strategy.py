@@ -72,6 +72,20 @@ class Strategy(ABC):
         Returns:
             float: Position size in base currency
         """
+        # If using fixed position size, calculate directly
+        if config.USE_FIXED_POSITION_SIZE and config.FIXED_POSITION_SIZE > 0:
+            amount_in_quote = config.FIXED_POSITION_SIZE
+            
+            # Apply leverage if enabled
+            if config.USE_LEVERAGE:
+                amount_in_quote *= config.LEVERAGE
+                logger.info(f"Using leverage: {config.LEVERAGE}x")
+            
+            amount_in_base = amount_in_quote / price
+            logger.info(f"Using fixed position size: {amount_in_quote} {self.symbol.split('/')[1]} ({amount_in_base} {self.symbol.split('/')[0]})")
+            return amount_in_base
+        
+        # Otherwise, calculate based on percentage of balance
         balance = self.exchange.get_balance()
         if balance is None:
             logger.error("Failed to get balance")
@@ -83,6 +97,12 @@ class Strategy(ABC):
         
         # Calculate position size
         amount_in_quote = available * self.position_size
+        
+        # Apply leverage if enabled
+        if config.USE_LEVERAGE:
+            amount_in_quote *= config.LEVERAGE
+            logger.info(f"Using leverage: {config.LEVERAGE}x")
+        
         amount_in_base = amount_in_quote / price
         
         return amount_in_base

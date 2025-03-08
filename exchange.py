@@ -161,4 +161,42 @@ class Exchange:
             return orders
         except Exception as e:
             logger.error(f"Failed to fetch open orders: {e}")
-            return [] 
+            return []
+    
+    def set_leverage(self, leverage, symbol=None):
+        """
+        Set leverage for a symbol.
+        
+        Args:
+            leverage (float): Leverage multiplier
+            symbol (str): Trading pair symbol
+            
+        Returns:
+            dict: Response from the exchange
+        """
+        symbol = symbol or self.symbol
+        
+        if config.MODE == "paper":
+            logger.info(f"Paper trading: Set leverage to {leverage}x for {symbol}")
+            return {"leverage": leverage, "symbol": symbol}
+        
+        try:
+            # Different exchanges have different methods to set leverage
+            if hasattr(self.exchange, 'set_leverage'):
+                result = self.exchange.set_leverage(leverage, symbol)
+            elif hasattr(self.exchange, 'private_post_leverage'):
+                # For some exchanges like BitMEX
+                result = self.exchange.private_post_leverage({
+                    'symbol': self.exchange.market_id(symbol),
+                    'leverage': leverage
+                })
+            else:
+                # Try to set leverage through options
+                self.exchange.options['defaultLeverage'] = leverage
+                result = {"leverage": leverage, "symbol": symbol}
+            
+            logger.info(f"Set leverage to {leverage}x for {symbol}")
+            return result
+        except Exception as e:
+            logger.error(f"Failed to set leverage for {symbol}: {e}")
+            return None 

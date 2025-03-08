@@ -24,6 +24,7 @@ A customizable cryptocurrency trading bot built with Python.
   - Stop loss notifications
   - Trading signal notifications
   - Error notifications
+- **Leverage Trading** support for margin/futures trading
 
 ## Setup
 
@@ -66,6 +67,45 @@ A customizable cryptocurrency trading bot built with Python.
 ### Machine Learning Strategies
 - **ML**: Pure machine learning based strategy
 - **ENSEMBLE**: Combination of traditional and ML strategies
+
+## Command-Line Arguments
+
+The bot supports various command-line arguments to customize its behavior:
+
+### Basic Arguments
+```
+python main.py paper --strategy SMA --symbol BTC/USDT
+```
+
+### Position Sizing
+You can specify a fixed position size directly from the command line using either `--fixed-size` or `--invest`:
+```
+python main.py paper --strategy SMA --symbol BTC/USDT --invest 50
+```
+or
+```
+python main.py paper --strategy SMA --symbol BTC/USDT --fixed-size 50
+```
+Both commands will use exactly 50 USDT for each trade.
+
+### Leverage Trading
+You can enable leverage trading from the command line:
+```
+python main.py paper --strategy SMA --symbol BTC/USDT --invest 50 --leverage 2
+```
+This will use 2x leverage, effectively trading with 100 USDT (50 USDT × 2).
+
+### Full Example
+```
+python main.py paper --strategy ENSEMBLE --symbol ETH/USDT --fixed-size 50 --leverage 3 --schedule --interval 5
+```
+This will:
+- Run in paper trading mode
+- Use the ENSEMBLE strategy
+- Trade ETH/USDT
+- Use a fixed position size of 50 USDT
+- Apply 3x leverage (effectively trading with 150 USDT)
+- Run on a schedule every 5 minutes
 
 ## Machine Learning
 
@@ -145,6 +185,36 @@ python main.py backtest --strategy ENSEMBLE --start-date 2023-01-01 --end-date 2
 python main.py paper --strategy ML --schedule --interval 5
 ```
 
+## Examples
+
+### Trading with a Fixed Investment Amount
+
+To trade with a fixed investment of 50 USDT per trade:
+
+```
+python main.py paper --strategy SMA --symbol BTC/USDT --invest 50
+```
+
+### Trading with Leverage
+
+To trade with 50 USDT and 3x leverage:
+
+```
+python main.py paper --strategy SMA --symbol BTC/USDT --invest 50 --leverage 3
+```
+
+This will effectively trade with 150 USDT (50 USDT × 3).
+
+### High Leverage Trading Example
+
+For high leverage trading (e.g., 20x leverage):
+
+```
+python main.py live --strategy SMA --symbol BTC/USDT --invest 50 --leverage 20
+```
+
+This will effectively trade with 1,000 USDT (50 USDT × 20). Use high leverage with extreme caution as it significantly increases risk.
+
 ## Live Trading
 
 ```
@@ -153,4 +223,4 @@ python main.py live --strategy ENSEMBLE
 
 ## Disclaimer
 
-This trading bot is for educational purposes only. Use at your own risk. Cryptocurrency trading involves significant risk and you can lose money. 
+This trading bot is for educational purposes only. Use at your own risk. Cryptocurrency trading involves significant risk and you can lose money. Using leverage increases risk substantially. 
