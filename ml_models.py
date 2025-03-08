@@ -224,11 +224,15 @@ class MLModel(ABC):
     def save_model(self):
         """Save the model to disk."""
         try:
-            # Use the newer .keras format instead of .h5
-            model_path = os.path.join('models', f"{self.model_name}.keras")
-            
-            # Save model without options parameter
-            self.model.save(model_path, save_format='keras')
+            # Different saving methods depending on model type
+            if hasattr(self.model, 'save'):
+                # For Keras models
+                model_path = os.path.join('models', f"{self.model_name}.keras")
+                self.model.save(model_path, save_format='keras')
+            else:
+                # For scikit-learn models
+                model_path = os.path.join('models', f"{self.model_name}.joblib")
+                joblib.dump(self.model, model_path)
             
             # Save scaler
             scaler_path = os.path.join('models', f"{self.model_name}_scaler.joblib")
@@ -238,19 +242,29 @@ class MLModel(ABC):
             features_path = os.path.join('models', f"{self.model_name}_features.joblib")
             joblib.dump(self.features, features_path)
             
-            # Save sequence length separately
-            seq_length_path = os.path.join('models', f"{self.model_name}_seq_length.joblib")
-            joblib.dump(self.sequence_length, seq_length_path)
+            # Save sequence length if it exists
+            if hasattr(self, 'sequence_length'):
+                seq_length_path = os.path.join('models', f"{self.model_name}_seq_length.joblib")
+                joblib.dump(self.sequence_length, seq_length_path)
             
-            print(f"Saved model to {model_path}")
+            logger.info(f"Saved model to {model_path}")
             return True
         except Exception as e:
             print(f"Failed to save model: {e}")
-            # Fallback to h5 format if keras format fails
+            # Try alternative saving method as fallback
             try:
-                h5_model_path = os.path.join('models', f"{self.model_name}.h5")
-                self.model.save(h5_model_path, save_format='h5')
-                print(f"Saved model to {h5_model_path} using h5 format as fallback")
+                if hasattr(self.model, 'save'):
+                    # Try h5 format for Keras models
+                    h5_model_path = os.path.join('models', f"{self.model_name}.h5")
+                    self.model.save(h5_model_path, save_format='h5')
+                    logger.info(f"Saved model to {h5_model_path} using h5 format as fallback")
+                else:
+                    # Try pickle for scikit-learn models
+                    pickle_path = os.path.join('models', f"{self.model_name}.pkl")
+                    import pickle
+                    with open(pickle_path, 'wb') as f:
+                        pickle.dump(self.model, f)
+                    logger.info(f"Saved model to {pickle_path} using pickle as fallback")
                 
                 # Save other components
                 scaler_path = os.path.join('models', f"{self.model_name}_scaler.joblib")
@@ -259,8 +273,9 @@ class MLModel(ABC):
                 features_path = os.path.join('models', f"{self.model_name}_features.joblib")
                 joblib.dump(self.features, features_path)
                 
-                seq_length_path = os.path.join('models', f"{self.model_name}_seq_length.joblib")
-                joblib.dump(self.sequence_length, seq_length_path)
+                if hasattr(self, 'sequence_length'):
+                    seq_length_path = os.path.join('models', f"{self.model_name}_seq_length.joblib")
+                    joblib.dump(self.sequence_length, seq_length_path)
                 
                 return True
             except Exception as e2:
@@ -270,35 +285,52 @@ class MLModel(ABC):
     def load_model(self):
         """Load the model from disk."""
         try:
-            # Try loading the newer .keras format first
-            model_path = os.path.join('models', f"{self.model_name}.keras")
-            if os.path.exists(model_path):
-                self.model = load_model(model_path)
+            # Try different file formats
+            keras_path = os.path.join('models', f"{self.model_name}.keras")
+            h5_path = os.path.join('models', f"{self.model_name}.h5")
+            joblib_path = os.path.join('models', f"{self.model_name}.joblib")
+            pickle_path = os.path.join('models', f"{self.model_name}.pkl")
+            
+            # Check which format exists and load accordingly
+            if os.path.exists(keras_path):
+                # For Keras models
+                self.model = load_model(keras_path)
+                logger.info(f"Loaded Keras model from {keras_path}")
+            elif os.path.exists(h5_path):
+                # For older Keras models
+                self.model = load_model(h5_path)
+                logger.info(f"Loaded legacy Keras model from {h5_path}")
+            elif os.path.exists(joblib_path):
+                # For scikit-learn models
+                self.model = joblib.load(joblib_path)
+                logger.info(f"Loaded scikit-learn model from {joblib_path}")
+            elif os.path.exists(pickle_path):
+                # For pickle fallback
+                import pickle
+                with open(pickle_path, 'rb') as f:
+                    self.model = pickle.load(f)
+                logger.info(f"Loaded model from {pickle_path} using pickle")
             else:
-                # Fall back to the older .h5 format for backward compatibility
-                legacy_model_path = os.path.join('models', f"{self.model_name}.h5")
-                if os.path.exists(legacy_model_path):
-                    self.model = load_model(legacy_model_path)
-                    print(f"Loaded legacy model format from {legacy_model_path}")
-                else:
-                    print(f"No model file found at {model_path} or {legacy_model_path}")
-                    return False
+                print(f"No model file found for {self.model_name}")
+                return False
             
             # Load scaler
             scaler_path = os.path.join('models', f"{self.model_name}_scaler.joblib")
-            self.scaler_X = joblib.load(scaler_path)
+            if os.path.exists(scaler_path):
+                self.scaler_X = joblib.load(scaler_path)
             
             # Load feature list
             features_path = os.path.join('models', f"{self.model_name}_features.joblib")
-            self.features = joblib.load(features_path)
+            if os.path.exists(features_path):
+                self.features = joblib.load(features_path)
             
             # Load sequence length if available
             seq_length_path = os.path.join('models', f"{self.model_name}_seq_length.joblib")
-            if os.path.exists(seq_length_path):
+            if hasattr(self, 'sequence_length') and os.path.exists(seq_length_path):
                 self.sequence_length = joblib.load(seq_length_path)
             
             self.trained = True
-            print(f"Loaded model successfully")
+            logger.info(f"Successfully loaded model: {self.model_name}")
             return True
         except Exception as e:
             print(f"Failed to load model: {e}")
@@ -642,7 +674,7 @@ class EnsembleModel(MLModel):
         
         for model in self.models:
             try:
-                print(f"Training model: {model.model_name}")
+                logger.info(f"Training model: {model.model_name}")
                 model_metrics = model.train(df, target_column, test_size, prediction_horizon)
                 metrics[model.model_name] = model_metrics
             except Exception as e:
@@ -674,14 +706,109 @@ class EnsembleModel(MLModel):
         predictions = []
         
         for model in self.models:
-            model_preds = model.predict(df)
-            predictions.append(model_preds)
+            if model.trained:
+                try:
+                    model_preds = model.predict(df)
+                    predictions.append(model_preds)
+                except Exception as e:
+                    print(f"Error getting predictions from {model.model_name}: {e}")
+        
+        if not predictions:
+            print("No predictions available from any model")
+            return None
         
         # Combine predictions (simple majority vote)
         combined_preds = np.mean(predictions, axis=0)
         combined_preds = (combined_preds > 0.5).astype(int)
         
         return combined_preds
+    
+    def save_model(self):
+        """Save all models in the ensemble."""
+        success = True
+        
+        # Create ensemble directory if it doesn't exist
+        ensemble_dir = os.path.join('models', 'ensemble')
+        os.makedirs(ensemble_dir, exist_ok=True)
+        
+        # Save model list
+        model_names = [model.model_name for model in self.models]
+        model_list_path = os.path.join(ensemble_dir, 'model_list.joblib')
+        try:
+            joblib.dump(model_names, model_list_path)
+            logger.info(f"Saved ensemble model list to {model_list_path}")
+        except Exception as e:
+            print(f"Failed to save ensemble model list: {e}")
+            success = False
+        
+        # Save each individual model
+        for model in self.models:
+            try:
+                if model.trained:
+                    model_success = model.save_model()
+                    if not model_success:
+                        logger.warning(f"Failed to save model {model.model_name} in ensemble")
+                        success = False
+            except Exception as e:
+                print(f"Error saving model {model.model_name} in ensemble: {e}")
+                success = False
+        
+        return success
+    
+    def load_model(self):
+        """Load all models in the ensemble."""
+        success = True
+        
+        # Load model list
+        ensemble_dir = os.path.join('models', 'ensemble')
+        model_list_path = os.path.join(ensemble_dir, 'model_list.joblib')
+        
+        if not os.path.exists(model_list_path):
+            print(f"Ensemble model list not found at {model_list_path}")
+            return False
+        
+        try:
+            model_names = joblib.load(model_list_path)
+            logger.info(f"Loaded ensemble model list: {model_names}")
+            
+            # Clear current models
+            self.models = []
+            
+            # Load each individual model
+            for model_name in model_names:
+                try:
+                    if model_name == "random_forest":
+                        model = RandomForestModel()
+                    elif model_name == "xgboost":
+                        model = XGBoostModel()
+                    elif model_name == "lstm":
+                        model = LSTMModel()
+                    else:
+                        logger.warning(f"Unknown model type: {model_name}")
+                        continue
+                    
+                    model_success = model.load_model()
+                    if model_success:
+                        self.models.append(model)
+                    else:
+                        logger.warning(f"Failed to load model {model_name} in ensemble")
+                        success = False
+                except Exception as e:
+                    print(f"Error loading model {model_name} in ensemble: {e}")
+                    success = False
+            
+            self.trained = len(self.models) > 0
+            
+            if self.trained:
+                logger.info(f"Successfully loaded ensemble with {len(self.models)} models")
+            else:
+                logger.warning("No models were loaded in the ensemble")
+                success = False
+            
+            return success
+        except Exception as e:
+            print(f"Failed to load ensemble model: {e}")
+            return False
 
 
 class HyperparameterTuner:
