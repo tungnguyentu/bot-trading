@@ -127,6 +127,23 @@ Options:
 - `--test-size`: Proportion of data to use for testing
 - `--tune`: Enable hyperparameter tuning
 - `--trials`: Number of trials for hyperparameter tuning
+- `--cpu-only`: Use CPU-only mode with optimizations for systems without GPU
+
+### CPU-Only Training
+
+If you don't have a GPU or are experiencing GPU-related issues, you can use the `--cpu-only` flag to optimize training for CPU:
+
+```
+python main.py train --model lstm --symbol BTC/USDT --timeframe 1h --limit 1000 --cpu-only
+```
+
+This will:
+- Disable GPU usage
+- Use a smaller, more efficient model architecture
+- Reduce the number of features used for training
+- Optimize memory usage
+
+For ensemble models, the CPU-only mode will skip the LSTM model and only use tree-based models (Random Forest and XGBoost) which are more efficient on CPU.
 
 ### Using ML for Trading
 

@@ -9,13 +9,27 @@ from abc import ABC, abstractmethod
 import joblib
 import os
 
+# Configure TensorFlow for CPU-only usage
+import tensorflow as tf
+# Disable GPU
+try:
+    # Disable all GPUs
+    tf.config.set_visible_devices([], 'GPU')
+    # Suppress TensorFlow logging except for errors
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # 0=all, 1=info, 2=warning, 3=error
+    physical_devices = tf.config.list_physical_devices('GPU')
+    if len(physical_devices) > 0:
+        logger = logging.getLogger("ml_models")
+        logger.info("GPU is available but disabled by configuration")
+except Exception as e:
+    pass  # Ignore errors if GPU configuration fails
+
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.svm import SVC
 from xgboost import XGBClassifier
-import tensorflow as tf
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense, LSTM, Dropout, BatchNormalization
 from tensorflow.keras.optimizers import Adam
@@ -142,20 +156,36 @@ class MLModel(ABC):
             # For multi-class classification (buy, sell, hold)
             metrics = {
                 'accuracy': accuracy_score(y_test, y_pred),
-                'precision': precision_score(y_test, y_pred, average='weighted'),
-                'recall': recall_score(y_test, y_pred, average='weighted'),
-                'f1': f1_score(y_test, y_pred, average='weighted')
+                'precision': precision_score(y_test, y_pred, average='weighted', zero_division=0),
+                'recall': recall_score(y_test, y_pred, average='weighted', zero_division=0),
+                'f1': f1_score(y_test, y_pred, average='weighted', zero_division=0)
             }
         else:
             # For binary classification (price up or down)
             metrics = {
                 'accuracy': accuracy_score(y_test, y_pred),
-                'precision': precision_score(y_test, y_pred),
-                'recall': recall_score(y_test, y_pred),
-                'f1': f1_score(y_test, y_pred)
+                'precision': precision_score(y_test, y_pred, zero_division=0),
+                'recall': recall_score(y_test, y_pred, zero_division=0),
+                'f1': f1_score(y_test, y_pred, zero_division=0)
             }
         
+        # Add class distribution information
+        metrics['y_test_distribution'] = {
+            'positive': int(sum(y_test == 1)),
+            'negative': int(sum(y_test == 0)) if 0 in y_test else int(sum(y_test == -1)),
+            'total': len(y_test)
+        }
+        
+        metrics['y_pred_distribution'] = {
+            'positive': int(sum(y_pred == 1)),
+            'negative': int(sum(y_pred == 0)) if 0 in y_pred else int(sum(y_pred == -1)),
+            'total': len(y_pred)
+        }
+        
         logger.info(f"Training metrics for {self.model_name}: {metrics}")
+        logger.info(f"Test data distribution: {metrics['y_test_distribution']}")
+        logger.info(f"Prediction distribution: {metrics['y_pred_distribution']}")
+        
         self.trained = True
         
         # Save model
@@ -333,7 +363,7 @@ class XGBoostModel(MLModel):
 class LSTMModel(MLModel):
     """LSTM neural network for trading signals."""
     
-    def __init__(self, units=50, dropout=0.2, epochs=100, batch_size=32):
+    def __init__(self, units=32, dropout=0.2, epochs=50, batch_size=32):
         """
         Initialize the LSTM model.
         
@@ -353,25 +383,22 @@ class LSTMModel(MLModel):
     
     def build_model(self):
         """Build the LSTM model."""
-        # Define model architecture
+        # Define model architecture - simplified for CPU
         self.model = Sequential([
-            LSTM(units=self.units, return_sequences=True, input_shape=(self.sequence_length, len(self.features))),
-            Dropout(self.dropout),
-            BatchNormalization(),
-            LSTM(units=self.units, return_sequences=False),
+            LSTM(units=self.units, return_sequences=False, input_shape=(self.sequence_length, len(self.features))),
             Dropout(self.dropout),
             BatchNormalization(),
             Dense(units=1, activation='sigmoid')
         ])
         
-        # Compile model
+        # Compile model with reduced precision for CPU efficiency
         self.model.compile(
             optimizer=Adam(learning_rate=0.001),
             loss='binary_crossentropy',
             metrics=['accuracy']
         )
         
-        logger.info(f"Built LSTM model with {self.units} units")
+        logger.info(f"Built CPU-optimized LSTM model with {self.units} units")
     
     def prepare_data(self, df, target_column='price_direction', prediction_horizon=1):
         """
@@ -406,8 +433,20 @@ class LSTMModel(MLModel):
             data = data.dropna()
         
         # Select features (all numeric columns except target, timestamp, and signal)
-        self.features = [col for col in data.columns if col not in ['target', 'signal', 'timestamp', 'future_price'] 
+        # Limit to most important features for CPU efficiency
+        numeric_columns = [col for col in data.columns if col not in ['target', 'signal', 'timestamp', 'future_price'] 
                          and pd.api.types.is_numeric_dtype(data[col])]
+        
+        # Use only the most important features to reduce computation
+        important_features = ['close', 'volume']
+        
+        # Add some technical indicators if available
+        for col in numeric_columns:
+            if any(indicator in col for indicator in ['sma', 'ema', 'rsi', 'macd']):
+                important_features.append(col)
+        
+        # Limit to 10 features maximum for CPU efficiency
+        self.features = important_features[:10]
         
         # Extract features and target
         feature_data = data[self.features].values
@@ -492,17 +531,34 @@ class LSTMModel(MLModel):
             )
         
         # Make predictions
-        y_pred = (self.model.predict(X_test) > 0.5).astype(int)
+        y_pred_proba = self.model.predict(X_test)
+        y_pred = (y_pred_proba > 0.5).astype(int)
         
         # Calculate metrics
         metrics = {
             'accuracy': accuracy_score(y_test, y_pred),
-            'precision': precision_score(y_test, y_pred),
-            'recall': recall_score(y_test, y_pred),
-            'f1': f1_score(y_test, y_pred)
+            'precision': precision_score(y_test, y_pred, zero_division=0),
+            'recall': recall_score(y_test, y_pred, zero_division=0),
+            'f1': f1_score(y_test, y_pred, zero_division=0)
+        }
+        
+        # Add class distribution information
+        metrics['y_test_distribution'] = {
+            'positive': int(sum(y_test == 1)),
+            'negative': int(sum(y_test == 0)),
+            'total': len(y_test)
+        }
+        
+        metrics['y_pred_distribution'] = {
+            'positive': int(sum(y_pred == 1)),
+            'negative': int(sum(y_pred == 0)),
+            'total': len(y_pred)
         }
         
         logger.info(f"Training metrics for {self.model_name}: {metrics}")
+        logger.info(f"Test data distribution: {metrics['y_test_distribution']}")
+        logger.info(f"Prediction distribution: {metrics['y_pred_distribution']}")
+        
         self.trained = True
         
         # Save model

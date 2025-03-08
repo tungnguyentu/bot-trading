@@ -182,6 +182,13 @@ def train_ml_model_cmd(args):
         logger.error("ml_models module not found")
         return
     
+    # Set CPU-only mode if specified
+    if args.cpu_only:
+        logger.info("Using CPU-only mode for training")
+        os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+        import tensorflow as tf
+        tf.config.set_visible_devices([], 'GPU')
+    
     exchange = Exchange()
     
     # Get historical data
@@ -202,13 +209,26 @@ def train_ml_model_cmd(args):
     elif args.model == 'xgboost':
         model = ml_models.XGBoostModel()
     elif args.model == 'lstm':
-        model = ml_models.LSTMModel()
+        # Use smaller model for CPU-only mode
+        if args.cpu_only:
+            model = ml_models.LSTMModel(units=16, epochs=30, batch_size=16)
+            logger.info("Using smaller LSTM model for CPU training")
+        else:
+            model = ml_models.LSTMModel()
     elif args.model == 'ensemble':
-        model = ml_models.EnsembleModel([
-            ml_models.RandomForestModel(),
-            ml_models.XGBoostModel(),
-            ml_models.LSTMModel()
-        ])
+        # For CPU-only mode, skip LSTM in ensemble
+        if args.cpu_only:
+            logger.info("Using CPU-optimized ensemble (without LSTM)")
+            model = ml_models.EnsembleModel([
+                ml_models.RandomForestModel(),
+                ml_models.XGBoostModel()
+            ])
+        else:
+            model = ml_models.EnsembleModel([
+                ml_models.RandomForestModel(),
+                ml_models.XGBoostModel(),
+                ml_models.LSTMModel()
+            ])
     else:
         logger.error(f"Unknown model type: {args.model}")
         return
@@ -313,6 +333,7 @@ def main():
     train_parser.add_argument('--test-size', type=float, default=config.ML_TRAIN_TEST_SPLIT, help='Test size')
     train_parser.add_argument('--tune', action='store_true', default=config.ML_HYPERPARAMETER_TUNING, help='Tune hyperparameters')
     train_parser.add_argument('--trials', type=int, default=config.ML_HYPERPARAMETER_TRIALS, help='Number of trials for hyperparameter tuning')
+    train_parser.add_argument('--cpu-only', action='store_true', help='Use CPU only for training (optimize for CPU)')
     
     args = parser.parse_args()
     
