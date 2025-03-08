@@ -196,7 +196,9 @@ class MLModel(ABC):
         try:
             # Use the newer .keras format instead of .h5
             model_path = os.path.join('models', f"{self.model_name}.keras")
-            self.model.save(model_path)
+            
+            # Save model without options parameter
+            self.model.save(model_path, save_format='keras')
             
             # Save scaler
             scaler_path = os.path.join('models', f"{self.model_name}_scaler.joblib")
@@ -206,11 +208,34 @@ class MLModel(ABC):
             features_path = os.path.join('models', f"{self.model_name}_features.joblib")
             joblib.dump(self.features, features_path)
             
+            # Save sequence length separately
+            seq_length_path = os.path.join('models', f"{self.model_name}_seq_length.joblib")
+            joblib.dump(self.sequence_length, seq_length_path)
+            
             logger.info(f"Saved model to {model_path}")
             return True
         except Exception as e:
             logger.error(f"Failed to save model: {e}")
-            return False
+            # Fallback to h5 format if keras format fails
+            try:
+                h5_model_path = os.path.join('models', f"{self.model_name}.h5")
+                self.model.save(h5_model_path, save_format='h5')
+                logger.info(f"Saved model to {h5_model_path} using h5 format as fallback")
+                
+                # Save other components
+                scaler_path = os.path.join('models', f"{self.model_name}_scaler.joblib")
+                joblib.dump(self.scaler_X, scaler_path)
+                
+                features_path = os.path.join('models', f"{self.model_name}_features.joblib")
+                joblib.dump(self.features, features_path)
+                
+                seq_length_path = os.path.join('models', f"{self.model_name}_seq_length.joblib")
+                joblib.dump(self.sequence_length, seq_length_path)
+                
+                return True
+            except Exception as e2:
+                logger.error(f"Failed to save model using fallback method: {e2}")
+                return False
     
     def load_model(self):
         """Load the model from disk."""
@@ -225,8 +250,6 @@ class MLModel(ABC):
                 if os.path.exists(legacy_model_path):
                     self.model = load_model(legacy_model_path)
                     logger.info(f"Loaded legacy model format from {legacy_model_path}")
-                    # Save in the new format for future use
-                    self.save_model()
                 else:
                     logger.error(f"No model file found at {model_path} or {legacy_model_path}")
                     return False
@@ -239,8 +262,13 @@ class MLModel(ABC):
             features_path = os.path.join('models', f"{self.model_name}_features.joblib")
             self.features = joblib.load(features_path)
             
+            # Load sequence length if available
+            seq_length_path = os.path.join('models', f"{self.model_name}_seq_length.joblib")
+            if os.path.exists(seq_length_path):
+                self.sequence_length = joblib.load(seq_length_path)
+            
             self.trained = True
-            logger.info(f"Loaded model from {model_path}")
+            logger.info(f"Loaded model successfully")
             return True
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
@@ -427,19 +455,41 @@ class LSTMModel(MLModel):
             ModelCheckpoint(
                 filepath=os.path.join('models', f"{self.model_name}_best.keras"),
                 monitor='val_loss',
-                save_best_only=True
+                save_best_only=True,
+                save_format='keras'  # Explicitly specify the format
             )
         ]
         
         # Train model
-        history = self.model.fit(
-            X_train, y_train,
-            epochs=self.epochs,
-            batch_size=self.batch_size,
-            validation_data=(X_test, y_test),
-            callbacks=callbacks,
-            verbose=1
-        )
+        try:
+            history = self.model.fit(
+                X_train, y_train,
+                epochs=self.epochs,
+                batch_size=self.batch_size,
+                validation_data=(X_test, y_test),
+                callbacks=callbacks,
+                verbose=1
+            )
+        except Exception as e:
+            logger.error(f"Error during model training: {e}")
+            # Try with h5 format if keras format fails
+            callbacks = [
+                EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
+                ModelCheckpoint(
+                    filepath=os.path.join('models', f"{self.model_name}_best.h5"),
+                    monitor='val_loss',
+                    save_best_only=True,
+                    save_format='h5'  # Use h5 format as fallback
+                )
+            ]
+            history = self.model.fit(
+                X_train, y_train,
+                epochs=self.epochs,
+                batch_size=self.batch_size,
+                validation_data=(X_test, y_test),
+                callbacks=callbacks,
+                verbose=1
+            )
         
         # Make predictions
         y_pred = (self.model.predict(X_test) > 0.5).astype(int)
@@ -490,61 +540,6 @@ class LSTMModel(MLModel):
         predictions = (self.model.predict(X) > 0.5).astype(int)
         
         return predictions
-    
-    def save_model(self):
-        """Save the model to disk."""
-        try:
-            # Use the newer .keras format instead of .h5
-            model_path = os.path.join('models', f"{self.model_name}.keras")
-            self.model.save(model_path)
-            
-            # Save scaler
-            scaler_path = os.path.join('models', f"{self.model_name}_scaler.joblib")
-            joblib.dump(self.scaler_X, scaler_path)
-            
-            # Save feature list
-            features_path = os.path.join('models', f"{self.model_name}_features.joblib")
-            joblib.dump(self.features, features_path)
-            
-            logger.info(f"Saved model to {model_path}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to save model: {e}")
-            return False
-    
-    def load_model(self):
-        """Load the model from disk."""
-        try:
-            # Try loading the newer .keras format first
-            model_path = os.path.join('models', f"{self.model_name}.keras")
-            if os.path.exists(model_path):
-                self.model = load_model(model_path)
-            else:
-                # Fall back to the older .h5 format for backward compatibility
-                legacy_model_path = os.path.join('models', f"{self.model_name}.h5")
-                if os.path.exists(legacy_model_path):
-                    self.model = load_model(legacy_model_path)
-                    logger.info(f"Loaded legacy model format from {legacy_model_path}")
-                    # Save in the new format for future use
-                    self.save_model()
-                else:
-                    logger.error(f"No model file found at {model_path} or {legacy_model_path}")
-                    return False
-            
-            # Load scaler
-            scaler_path = os.path.join('models', f"{self.model_name}_scaler.joblib")
-            self.scaler_X = joblib.load(scaler_path)
-            
-            # Load feature list
-            features_path = os.path.join('models', f"{self.model_name}_features.joblib")
-            self.features = joblib.load(features_path)
-            
-            self.trained = True
-            logger.info(f"Loaded model from {model_path}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to load model: {e}")
-            return False
 
 
 class EnsembleModel(MLModel):
@@ -590,10 +585,20 @@ class EnsembleModel(MLModel):
         metrics = {}
         
         for model in self.models:
-            model_metrics = model.train(df, target_column, test_size, prediction_horizon)
-            metrics[model.model_name] = model_metrics
+            try:
+                logger.info(f"Training model: {model.model_name}")
+                model_metrics = model.train(df, target_column, test_size, prediction_horizon)
+                metrics[model.model_name] = model_metrics
+            except Exception as e:
+                logger.error(f"Error training model {model.model_name}: {e}")
+                metrics[model.model_name] = {"error": str(e)}
         
-        self.trained = True
+        # Mark as trained if at least one model was trained successfully
+        self.trained = any(not isinstance(m, dict) or "error" not in m for m in metrics.values())
+        
+        if not self.trained:
+            logger.warning("No models in the ensemble were trained successfully")
+        
         return metrics
     
     def predict(self, df):
