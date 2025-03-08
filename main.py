@@ -34,11 +34,11 @@ def run_bot(exchange, strategy_name=None):
     # Get strategy
     strategy = get_strategy(strategy_name, exchange)
     if strategy is None:
-        logger.error(f"Unknown strategy: {strategy_name}")
+        print(f"Unknown strategy: {strategy_name}")
         return None
     
     # Run strategy
-    logger.info(f"Running strategy: {strategy_name}")
+    print(f"Running strategy: {strategy_name}")
     result = strategy.run()
     
     return result
@@ -53,7 +53,7 @@ def schedule_bot(interval=1):
     exchange = Exchange()
     
     def job():
-        logger.info(f"Running scheduled job at {datetime.now()}")
+        print(f"Running scheduled job at {datetime.now()}")
         run_bot(exchange)
     
     # Schedule the job
@@ -92,7 +92,7 @@ def run_backtest_cmd(args):
             f"backtest_{args.strategy}_{config.SYMBOL.replace('/', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         )
         utils.save_to_json(results, filename)
-        logger.info(f"Saved backtest results to {filename}")
+        print(f"Saved backtest results to {filename}")
 
 def run_live_cmd(args):
     """
@@ -105,16 +105,16 @@ def run_live_cmd(args):
     if hasattr(args, 'invest') and args.invest:
         config.USE_FIXED_POSITION_SIZE = True
         config.FIXED_POSITION_SIZE = args.invest
-        logger.info(f"Using investment amount: {args.invest} {args.symbol.split('/')[1]}")
+        print(f"Using investment amount: {args.invest} {args.symbol.split('/')[1]}")
     elif hasattr(args, 'fixed_size') and args.fixed_size:
         config.USE_FIXED_POSITION_SIZE = True
         config.FIXED_POSITION_SIZE = args.fixed_size
-        logger.info(f"Using fixed position size: {args.fixed_size} {args.symbol.split('/')[1]}")
+        print(f"Using fixed position size: {args.fixed_size} {args.symbol.split('/')[1]}")
     
     # Set leverage if specified
     if args.leverage and args.leverage > 1:
         config.LEVERAGE = args.leverage
-        logger.info(f"Using leverage: {args.leverage}x")
+        print(f"Using leverage: {args.leverage}x")
     
     if args.schedule:
         schedule_bot(args.interval)
@@ -126,7 +126,7 @@ def run_live_cmd(args):
             try:
                 exchange.set_leverage(args.leverage, args.symbol)
             except Exception as e:
-                logger.error(f"Failed to set leverage: {e}")
+                print(f"Failed to set leverage: {e}")
         
         run_bot(exchange, args.strategy)
 
@@ -144,16 +144,16 @@ def run_paper_cmd(args):
     if hasattr(args, 'invest') and args.invest:
         config.USE_FIXED_POSITION_SIZE = True
         config.FIXED_POSITION_SIZE = args.invest
-        logger.info(f"Using investment amount: {args.invest} {args.symbol.split('/')[1]}")
+        print(f"Using investment amount: {args.invest} {args.symbol.split('/')[1]}")
     elif hasattr(args, 'fixed_size') and args.fixed_size:
         config.USE_FIXED_POSITION_SIZE = True
         config.FIXED_POSITION_SIZE = args.fixed_size
-        logger.info(f"Using fixed position size: {args.fixed_size} {args.symbol.split('/')[1]}")
+        print(f"Using fixed position size: {args.fixed_size} {args.symbol.split('/')[1]}")
     
     # Set leverage if specified
     if args.leverage and args.leverage > 1:
         config.LEVERAGE = args.leverage
-        logger.info(f"Using leverage: {args.leverage}x")
+        print(f"Using leverage: {args.leverage}x")
     
     if args.schedule:
         schedule_bot(args.interval)
@@ -165,7 +165,7 @@ def run_paper_cmd(args):
             try:
                 exchange.set_leverage(args.leverage, args.symbol)
             except Exception as e:
-                logger.error(f"Failed to set leverage: {e}")
+                print(f"Failed to set leverage: {e}")
         
         run_bot(exchange, args.strategy)
 
@@ -179,12 +179,12 @@ def train_ml_model_cmd(args):
     try:
         import ml_models
     except ImportError:
-        logger.error("ml_models module not found")
+        print("ml_models module not found")
         return
     
     # Set CPU-only mode if specified
     if args.cpu_only:
-        logger.info("Using CPU-only mode for training")
+        print("Using CPU-only mode for training")
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
         import tensorflow as tf
         tf.config.set_visible_devices([], 'GPU')
@@ -192,11 +192,11 @@ def train_ml_model_cmd(args):
     exchange = Exchange()
     
     # Get historical data
-    logger.info(f"Fetching historical data for {args.symbol}")
+    print(f"Fetching historical data for {args.symbol}")
     df = exchange.get_ohlcv(args.symbol, args.timeframe, limit=args.limit)
     
     if df is None or len(df) == 0:
-        logger.error("Failed to get historical data")
+        print("Failed to get historical data")
         return
     
     # Add indicators
@@ -212,13 +212,13 @@ def train_ml_model_cmd(args):
         # Use smaller model for CPU-only mode
         if args.cpu_only:
             model = ml_models.LSTMModel(units=16, epochs=30, batch_size=16)
-            logger.info("Using smaller LSTM model for CPU training")
+            print("Using smaller LSTM model for CPU training")
         else:
             model = ml_models.LSTMModel()
     elif args.model == 'ensemble':
         # For CPU-only mode, skip LSTM in ensemble
         if args.cpu_only:
-            logger.info("Using CPU-optimized ensemble (without LSTM)")
+            print("Using CPU-optimized ensemble (without LSTM)")
             model = ml_models.EnsembleModel([
                 ml_models.RandomForestModel(),
                 ml_models.XGBoostModel()
@@ -230,12 +230,12 @@ def train_ml_model_cmd(args):
                 ml_models.LSTMModel()
             ])
     else:
-        logger.error(f"Unknown model type: {args.model}")
+        print(f"Unknown model type: {args.model}")
         return
     
     # Tune hyperparameters if requested
     if args.tune:
-        logger.info(f"Tuning hyperparameters for {args.model}")
+        print(f"Tuning hyperparameters for {args.model}")
         tuner = ml_models.HyperparameterTuner(
             args.model, 
             df, 
@@ -243,7 +243,7 @@ def train_ml_model_cmd(args):
             n_trials=args.trials
         )
         best_params = tuner.tune()
-        logger.info(f"Best hyperparameters: {best_params}")
+        print(f"Best hyperparameters: {best_params}")
         
         # Create model with best parameters
         if args.model == 'random_forest':
@@ -265,7 +265,7 @@ def train_ml_model_cmd(args):
             )
     
     # Train model
-    logger.info(f"Training {args.model} model on {len(df)} samples")
+    print(f"Training {args.model} model on {len(df)} samples")
     metrics = model.train(
         df, 
         target_column=args.target, 
@@ -273,7 +273,7 @@ def train_ml_model_cmd(args):
         prediction_horizon=args.horizon
     )
     
-    logger.info(f"Training metrics: {metrics}")
+    print(f"Training metrics: {metrics}")
     
     # Save model
     model.save_model()
@@ -285,7 +285,7 @@ def train_ml_model_cmd(args):
         f"{args.model}_metrics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     )
     utils.save_to_json(metrics, metrics_file)
-    logger.info(f"Saved metrics to {metrics_file}")
+    print(f"Saved metrics to {metrics_file}")
 
 def main():
     """Main entry point."""

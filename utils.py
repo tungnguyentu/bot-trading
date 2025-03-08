@@ -32,7 +32,7 @@ def setup_logging():
         ]
     )
     
-    logger.info(f"Logging initialized at level {config.LOG_LEVEL}")
+    print(f"Logging initialized at level {config.LOG_LEVEL}")
 
 def save_to_json(data, filename):
     """
@@ -48,7 +48,7 @@ def save_to_json(data, filename):
         logger.debug(f"Saved data to {filename}")
         return True
     except Exception as e:
-        logger.error(f"Failed to save data to {filename}: {e}")
+        print(f"Failed to save data to {filename}: {e}")
         return False
 
 def load_from_json(filename):
@@ -67,7 +67,7 @@ def load_from_json(filename):
         logger.debug(f"Loaded data from {filename}")
         return data
     except Exception as e:
-        logger.error(f"Failed to load data from {filename}: {e}")
+        print(f"Failed to load data from {filename}: {e}")
         return None
 
 def plot_ohlcv(df, title=None, save_path=None):
@@ -101,13 +101,13 @@ def plot_ohlcv(df, title=None, save_path=None):
         
         if save_path:
             plt.savefig(save_path)
-            logger.info(f"Saved plot to {save_path}")
+            print(f"Saved plot to {save_path}")
         else:
             plt.show()
         
         plt.close()
     except Exception as e:
-        logger.error(f"Failed to plot OHLCV data: {e}")
+        print(f"Failed to plot OHLCV data: {e}")
 
 def calculate_trade_stats(trades):
     """
@@ -207,5 +207,5 @@ def create_data_directory():
     """Create a data directory if it doesn't exist."""
     if not os.path.exists('data'):
         os.makedirs('data')
-        logger.info("Created data directory")
+        print("Created data directory")
     return os.path.abspath('data') 

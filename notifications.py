@@ -33,9 +33,9 @@ class TelegramNotifier:
         
         try:
             self.bot = telegram.Bot(token=self.token)
-            logger.info("Telegram bot initialized")
+            print("Telegram bot initialized")
         except Exception as e:
-            logger.error(f"Failed to initialize Telegram bot: {e}")
+            print(f"Failed to initialize Telegram bot: {e}")
             self.bot = None
     
     def send_message(self, message):
@@ -57,7 +57,7 @@ class TelegramNotifier:
             logger.debug(f"Sent message to Telegram: {message}")
             return True
         except Exception as e:
-            logger.error(f"Failed to send message to Telegram: {e}")
+            print(f"Failed to send message to Telegram: {e}")
             return False
     
     def send_trade_notification(self, trade_type, symbol, amount, price, pnl=None):

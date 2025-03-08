@@ -39,7 +39,7 @@ class Backtest:
         self.start_timestamp = int(datetime.strptime(self.start_date, "%Y-%m-%d").timestamp() * 1000)
         self.end_timestamp = int(datetime.strptime(self.end_date, "%Y-%m-%d").timestamp() * 1000)
         
-        logger.info(f"Initialized backtester for {strategy_name} from {start_date} to {end_date}")
+        print(f"Initialized backtester for {strategy_name} from {start_date} to {end_date}")
     
     def get_historical_data(self):
         """
@@ -59,16 +59,16 @@ class Backtest:
             df = self.exchange.get_ohlcv(self.symbol, self.timeframe, limit=500)
             
             if df is None or len(df) == 0:
-                logger.error("Failed to get historical data")
+                print("Failed to get historical data")
                 return None
             
             # Filter by date range
             df = df[(df.index >= self.start_date) & (df.index <= self.end_date)]
             
-            logger.info(f"Got {len(df)} candles for backtesting")
+            print(f"Got {len(df)} candles for backtesting")
             return df
         except Exception as e:
-            logger.error(f"Error getting historical data: {e}")
+            print(f"Error getting historical data: {e}")
             return None
     
     def run(self):
@@ -81,13 +81,13 @@ class Backtest:
         # Get historical data
         data = self.get_historical_data()
         if data is None or len(data) == 0:
-            logger.error("No data for backtesting")
+            print("No data for backtesting")
             return None
         
         # Initialize strategy
         strategy = get_strategy(self.strategy_name, self.exchange)
         if strategy is None:
-            logger.error(f"Unknown strategy: {self.strategy_name}")
+            print(f"Unknown strategy: {self.strategy_name}")
             return None
         
         # Generate signals
@@ -219,7 +219,7 @@ class Backtest:
             'equity_curve': equity_curve
         }
         
-        logger.info(f"Backtest results: {results}")
+        print(f"Backtest results: {results}")
         return results
     
     def plot_results(self, results):
@@ -230,7 +230,7 @@ class Backtest:
             results (dict): Backtest results
         """
         if results is None or 'trades_df' not in results:
-            logger.error("No results to plot")
+            print("No results to plot")
             return
         
         # Create figure with subplots
@@ -281,7 +281,7 @@ class Backtest:
         plt.savefig(f"backtest_{self.strategy_name}_{self.symbol.replace('/', '_')}.png")
         plt.close()
         
-        logger.info(f"Saved backtest plot to backtest_{self.strategy_name}_{self.symbol.replace('/', '_')}.png")
+        print(f"Saved backtest plot to backtest_{self.strategy_name}_{self.symbol.replace('/', '_')}.png")
 
 
 def run_backtest(exchange, strategy_name, start_date=None, end_date=None):

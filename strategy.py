@@ -58,7 +58,7 @@ class Strategy(ABC):
         """Get market data with indicators."""
         df = self.exchange.get_ohlcv(self.symbol, self.timeframe, limit)
         if df is None:
-            logger.error("Failed to get market data")
+            print("Failed to get market data")
             return None
         return df
     
@@ -79,16 +79,16 @@ class Strategy(ABC):
             # Apply leverage if enabled
             if config.USE_LEVERAGE:
                 amount_in_quote *= config.LEVERAGE
-                logger.info(f"Using leverage: {config.LEVERAGE}x")
+                print(f"Using leverage: {config.LEVERAGE}x")
             
             amount_in_base = amount_in_quote / price
-            logger.info(f"Using fixed position size: {amount_in_quote} {self.symbol.split('/')[1]} ({amount_in_base} {self.symbol.split('/')[0]})")
+            print(f"Using fixed position size: {amount_in_quote} {self.symbol.split('/')[1]} ({amount_in_base} {self.symbol.split('/')[0]})")
             return amount_in_base
         
         # Otherwise, calculate based on percentage of balance
         balance = self.exchange.get_balance()
         if balance is None:
-            logger.error("Failed to get balance")
+            print("Failed to get balance")
             return 0
         
         # Get available balance in quote currency (e.g., USDT)
@@ -101,7 +101,7 @@ class Strategy(ABC):
         # Apply leverage if enabled
         if config.USE_LEVERAGE:
             amount_in_quote *= config.LEVERAGE
-            logger.info(f"Using leverage: {config.LEVERAGE}x")
+            print(f"Using leverage: {config.LEVERAGE}x")
         
         amount_in_base = amount_in_quote / price
         
@@ -131,7 +131,7 @@ class Strategy(ABC):
                 self.position = 'long'
                 self.entry_price = price
                 self.position_amount = amount
-                logger.info(f"Opened long position: {amount} at {price}")
+                print(f"Opened long position: {amount} at {price}")
                 
                 # Send notification
                 if notifier and config.NOTIFY_ON_TRADES:
@@ -144,7 +144,7 @@ class Strategy(ABC):
             base_currency = self.symbol.split('/')[0]
             balance = self.exchange.get_balance()
             if balance is None:
-                logger.error("Failed to get balance")
+                print("Failed to get balance")
                 return None
             
             amount = balance.get('free', {}).get(base_currency, 0)
@@ -161,7 +161,7 @@ class Strategy(ABC):
             order = self.exchange.create_order('market', 'sell', amount)
             if order:
                 self.position = None
-                logger.info(f"Closed long position: {amount} at {price}")
+                print(f"Closed long position: {amount} at {price}")
                 
                 # Send notification
                 if notifier and config.NOTIFY_ON_TRADES:
@@ -197,7 +197,7 @@ class Strategy(ABC):
             base_currency = self.symbol.split('/')[0]
             balance = self.exchange.get_balance()
             if balance is None:
-                logger.error("Failed to get balance")
+                print("Failed to get balance")
                 return None
             
             amount = balance.get('free', {}).get(base_currency, 0)
@@ -209,7 +209,7 @@ class Strategy(ABC):
             order = self.exchange.create_order('market', 'sell', amount)
             if order:
                 self.position = None
-                logger.info(f"Stop loss triggered: {amount} at {price}")
+                print(f"Stop loss triggered: {amount} at {price}")
                 
                 # Send notification
                 if notifier and config.NOTIFY_ON_TRADES:
@@ -230,7 +230,7 @@ class Strategy(ABC):
             base_currency = self.symbol.split('/')[0]
             balance = self.exchange.get_balance()
             if balance is None:
-                logger.error("Failed to get balance")
+                print("Failed to get balance")
                 return None
             
             amount = balance.get('free', {}).get(base_currency, 0)
@@ -242,7 +242,7 @@ class Strategy(ABC):
             order = self.exchange.create_order('market', 'sell', amount)
             if order:
                 self.position = None
-                logger.info(f"Take profit triggered: {amount} at {price}")
+                print(f"Take profit triggered: {amount} at {price}")
                 
                 # Send notification
                 if notifier and config.NOTIFY_ON_TRADES:
@@ -309,7 +309,7 @@ class SMAStrategy(Strategy):
         super().__init__(exchange)
         self.short_period = short_period or config.SMA_SHORT
         self.long_period = long_period or config.SMA_LONG
-        logger.info(f"Initialized SMA strategy: {self.short_period}/{self.long_period}")
+        print(f"Initialized SMA strategy: {self.short_period}/{self.long_period}")
     
     def generate_signals(self, data):
         """
@@ -365,7 +365,7 @@ class RSIStrategy(Strategy):
         self.period = period or config.RSI_PERIOD
         self.overbought = overbought or config.RSI_OVERBOUGHT
         self.oversold = oversold or config.RSI_OVERSOLD
-        logger.info(f"Initialized RSI strategy: period={self.period}, overbought={self.overbought}, oversold={self.oversold}")
+        print(f"Initialized RSI strategy: period={self.period}, overbought={self.overbought}, oversold={self.oversold}")
     
     def generate_signals(self, data):
         """
@@ -414,7 +414,7 @@ class MACDStrategy(Strategy):
         self.fast_period = fast_period or config.MACD_FAST
         self.slow_period = slow_period or config.MACD_SLOW
         self.signal_period = signal_period or config.MACD_SIGNAL
-        logger.info(f"Initialized MACD strategy: fast={self.fast_period}, slow={self.slow_period}, signal={self.signal_period}")
+        print(f"Initialized MACD strategy: fast={self.fast_period}, slow={self.slow_period}, signal={self.signal_period}")
     
     def generate_signals(self, data):
         """
@@ -462,7 +462,7 @@ class MLStrategy(Strategy):
         super().__init__(exchange)
         self.ml_model = ml_model
         self.confidence_threshold = confidence_threshold
-        logger.info(f"Initialized ML strategy with {ml_model.model_name} model")
+        print(f"Initialized ML strategy with {ml_model.model_name} model")
     
     def generate_signals(self, data):
         """
@@ -568,7 +568,7 @@ class EnsembleStrategy(Strategy):
         total_weight = sum(self.weights)
         self.weights = [w / total_weight for w in self.weights]
         
-        logger.info(f"Initialized ensemble strategy with {len(self.strategies)} strategies")
+        print(f"Initialized ensemble strategy with {len(self.strategies)} strategies")
     
     def add_strategy(self, strategy, weight=1):
         """
@@ -596,7 +596,7 @@ class EnsembleStrategy(Strategy):
             pandas.DataFrame: Data with signals
         """
         if not self.strategies:
-            logger.error("No strategies in ensemble")
+            print("No strategies in ensemble")
             return data
         
         # Generate signals for each strategy
@@ -653,7 +653,7 @@ def get_strategy(strategy_name, exchange):
             model = RandomForestModel()
             return MLStrategy(exchange, model)
         except ImportError:
-            logger.error("ml_models module not found")
+            print("ml_models module not found")
             return None
     
     elif strategy_name.upper() == 'ENSEMBLE':
@@ -675,7 +675,7 @@ def get_strategy(strategy_name, exchange):
     
     strategy_class = strategies.get(strategy_name.upper())
     if strategy_class is None:
-        logger.error(f"Unknown strategy: {strategy_name}")
+        print(f"Unknown strategy: {strategy_name}")
         return None
     
     return strategy_class(exchange) 

@@ -20,7 +20,7 @@ try:
     physical_devices = tf.config.list_physical_devices('GPU')
     if len(physical_devices) > 0:
         logger = logging.getLogger("ml_models")
-        logger.info("GPU is available but disabled by configuration")
+        print("GPU is available but disabled by configuration")
 except Exception as e:
     pass  # Ignore errors if GPU configuration fails
 
@@ -63,7 +63,7 @@ class MLModel(ABC):
         # Create models directory if it doesn't exist
         if not os.path.exists('models'):
             os.makedirs('models')
-            logger.info("Created models directory")
+            print("Created models directory")
     
     @abstractmethod
     def build_model(self):
@@ -182,9 +182,9 @@ class MLModel(ABC):
             'total': len(y_pred)
         }
         
-        logger.info(f"Training metrics for {self.model_name}: {metrics}")
-        logger.info(f"Test data distribution: {metrics['y_test_distribution']}")
-        logger.info(f"Prediction distribution: {metrics['y_pred_distribution']}")
+        print(f"Training metrics for {self.model_name}: {metrics}")
+        print(f"Test data distribution: {metrics['y_test_distribution']}")
+        print(f"Prediction distribution: {metrics['y_pred_distribution']}")
         
         self.trained = True
         
@@ -204,7 +204,7 @@ class MLModel(ABC):
             numpy.ndarray: Predictions
         """
         if not self.trained:
-            logger.error("Model not trained yet")
+            print("Model not trained yet")
             return None
         
         # Prepare data
@@ -242,15 +242,15 @@ class MLModel(ABC):
             seq_length_path = os.path.join('models', f"{self.model_name}_seq_length.joblib")
             joblib.dump(self.sequence_length, seq_length_path)
             
-            logger.info(f"Saved model to {model_path}")
+            print(f"Saved model to {model_path}")
             return True
         except Exception as e:
-            logger.error(f"Failed to save model: {e}")
+            print(f"Failed to save model: {e}")
             # Fallback to h5 format if keras format fails
             try:
                 h5_model_path = os.path.join('models', f"{self.model_name}.h5")
                 self.model.save(h5_model_path, save_format='h5')
-                logger.info(f"Saved model to {h5_model_path} using h5 format as fallback")
+                print(f"Saved model to {h5_model_path} using h5 format as fallback")
                 
                 # Save other components
                 scaler_path = os.path.join('models', f"{self.model_name}_scaler.joblib")
@@ -264,7 +264,7 @@ class MLModel(ABC):
                 
                 return True
             except Exception as e2:
-                logger.error(f"Failed to save model using fallback method: {e2}")
+                print(f"Failed to save model using fallback method: {e2}")
                 return False
     
     def load_model(self):
@@ -279,9 +279,9 @@ class MLModel(ABC):
                 legacy_model_path = os.path.join('models', f"{self.model_name}.h5")
                 if os.path.exists(legacy_model_path):
                     self.model = load_model(legacy_model_path)
-                    logger.info(f"Loaded legacy model format from {legacy_model_path}")
+                    print(f"Loaded legacy model format from {legacy_model_path}")
                 else:
-                    logger.error(f"No model file found at {model_path} or {legacy_model_path}")
+                    print(f"No model file found at {model_path} or {legacy_model_path}")
                     return False
             
             # Load scaler
@@ -298,10 +298,10 @@ class MLModel(ABC):
                 self.sequence_length = joblib.load(seq_length_path)
             
             self.trained = True
-            logger.info(f"Loaded model successfully")
+            print(f"Loaded model successfully")
             return True
         except Exception as e:
-            logger.error(f"Failed to load model: {e}")
+            print(f"Failed to load model: {e}")
             return False
 
 
@@ -328,7 +328,7 @@ class RandomForestModel(MLModel):
             random_state=42,
             n_jobs=-1
         )
-        logger.info(f"Built Random Forest model with {self.n_estimators} estimators")
+        print(f"Built Random Forest model with {self.n_estimators} estimators")
 
 
 class XGBoostModel(MLModel):
@@ -357,7 +357,7 @@ class XGBoostModel(MLModel):
             random_state=42,
             n_jobs=-1
         )
-        logger.info(f"Built XGBoost model with {self.n_estimators} estimators")
+        print(f"Built XGBoost model with {self.n_estimators} estimators")
 
 
 class LSTMModel(MLModel):
@@ -398,7 +398,7 @@ class LSTMModel(MLModel):
             metrics=['accuracy']
         )
         
-        logger.info(f"Built CPU-optimized LSTM model with {self.units} units")
+        print(f"Built CPU-optimized LSTM model with {self.units} units")
     
     def prepare_data(self, df, target_column='price_direction', prediction_horizon=1):
         """
@@ -510,7 +510,7 @@ class LSTMModel(MLModel):
                 verbose=1
             )
         except Exception as e:
-            logger.error(f"Error during model training: {e}")
+            print(f"Error during model training: {e}")
             # Try with h5 format if keras format fails
             callbacks = [
                 EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True),
@@ -555,9 +555,9 @@ class LSTMModel(MLModel):
             'total': len(y_pred)
         }
         
-        logger.info(f"Training metrics for {self.model_name}: {metrics}")
-        logger.info(f"Test data distribution: {metrics['y_test_distribution']}")
-        logger.info(f"Prediction distribution: {metrics['y_pred_distribution']}")
+        print(f"Training metrics for {self.model_name}: {metrics}")
+        print(f"Test data distribution: {metrics['y_test_distribution']}")
+        print(f"Prediction distribution: {metrics['y_pred_distribution']}")
         
         self.trained = True
         
@@ -577,7 +577,7 @@ class LSTMModel(MLModel):
             numpy.ndarray: Predictions
         """
         if not self.trained:
-            logger.error("Model not trained yet")
+            print("Model not trained yet")
             return None
         
         # Prepare data
@@ -642,11 +642,11 @@ class EnsembleModel(MLModel):
         
         for model in self.models:
             try:
-                logger.info(f"Training model: {model.model_name}")
+                print(f"Training model: {model.model_name}")
                 model_metrics = model.train(df, target_column, test_size, prediction_horizon)
                 metrics[model.model_name] = model_metrics
             except Exception as e:
-                logger.error(f"Error training model {model.model_name}: {e}")
+                print(f"Error training model {model.model_name}: {e}")
                 metrics[model.model_name] = {"error": str(e)}
         
         # Mark as trained if at least one model was trained successfully
@@ -668,7 +668,7 @@ class EnsembleModel(MLModel):
             numpy.ndarray: Combined predictions
         """
         if not self.trained:
-            logger.error("Models not trained yet")
+            print("Models not trained yet")
             return None
         
         predictions = []
@@ -766,8 +766,8 @@ class HyperparameterTuner:
         study = optuna.create_study(direction='maximize')
         study.optimize(self.objective, n_trials=self.n_trials)
         
-        logger.info(f"Best hyperparameters for {self.model_type}: {study.best_params}")
-        logger.info(f"Best score: {study.best_value}")
+        print(f"Best hyperparameters for {self.model_type}: {study.best_params}")
+        print(f"Best score: {study.best_value}")
         
         return study.best_params
 
@@ -800,7 +800,7 @@ def create_ml_strategy(exchange, model_type='ensemble', train_data=None):
             LSTMModel()
         ])
     else:
-        logger.error(f"Unknown model type: {model_type}")
+        print(f"Unknown model type: {model_type}")
         return None, None
     
     # Create strategy with ML model

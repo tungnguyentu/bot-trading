@@ -38,9 +38,9 @@ class Exchange:
                 'enableRateLimit': True,
                 'options': {'defaultType': 'spot'}
             })
-            logger.info(f"Connected to {self.exchange_id}")
+            print(f"Connected to {self.exchange_id}")
         except Exception as e:
-            logger.error(f"Failed to connect to {self.exchange_id}: {e}")
+            print(f"Failed to connect to {self.exchange_id}: {e}")
             raise
     
     def get_balance(self):
@@ -49,7 +49,7 @@ class Exchange:
             balance = self.exchange.fetch_balance()
             return balance
         except Exception as e:
-            logger.error(f"Failed to fetch balance: {e}")
+            print(f"Failed to fetch balance: {e}")
             return None
     
     def get_ticker(self, symbol=None):
@@ -59,7 +59,7 @@ class Exchange:
             ticker = self.exchange.fetch_ticker(symbol)
             return ticker
         except Exception as e:
-            logger.error(f"Failed to fetch ticker for {symbol}: {e}")
+            print(f"Failed to fetch ticker for {symbol}: {e}")
             return None
     
     def get_ohlcv(self, symbol=None, timeframe=None, limit=100):
@@ -84,7 +84,7 @@ class Exchange:
             df.set_index('timestamp', inplace=True)
             return df
         except Exception as e:
-            logger.error(f"Failed to fetch OHLCV data for {symbol}: {e}")
+            print(f"Failed to fetch OHLCV data for {symbol}: {e}")
             return None
     
     def create_order(self, order_type, side, amount, price=None, params={}):
@@ -102,7 +102,7 @@ class Exchange:
             dict: Order information
         """
         if config.MODE == "paper":
-            logger.info(f"Paper trading: {side} {amount} {self.symbol} at {price}")
+            print(f"Paper trading: {side} {amount} {self.symbol} at {price}")
             return {
                 "id": f"paper_{datetime.now().timestamp()}",
                 "symbol": self.symbol,
@@ -117,50 +117,50 @@ class Exchange:
             order = self.exchange.create_order(
                 self.symbol, order_type, side, amount, price, params
             )
-            logger.info(f"Created order: {order['id']}")
+            print(f"Created order: {order['id']}")
             return order
         except Exception as e:
-            logger.error(f"Failed to create order: {e}")
+            print(f"Failed to create order: {e}")
             return None
     
     def cancel_order(self, order_id):
         """Cancel an existing order."""
         if config.MODE == "paper":
-            logger.info(f"Paper trading: Cancelled order {order_id}")
+            print(f"Paper trading: Cancelled order {order_id}")
             return {"id": order_id, "status": "canceled"}
         
         try:
             result = self.exchange.cancel_order(order_id, self.symbol)
-            logger.info(f"Cancelled order: {order_id}")
+            print(f"Cancelled order: {order_id}")
             return result
         except Exception as e:
-            logger.error(f"Failed to cancel order {order_id}: {e}")
+            print(f"Failed to cancel order {order_id}: {e}")
             return None
     
     def get_order(self, order_id):
         """Get information about an order."""
         if config.MODE == "paper":
-            logger.info(f"Paper trading: Get order {order_id}")
+            print(f"Paper trading: Get order {order_id}")
             return {"id": order_id, "status": "closed"}
         
         try:
             order = self.exchange.fetch_order(order_id, self.symbol)
             return order
         except Exception as e:
-            logger.error(f"Failed to fetch order {order_id}: {e}")
+            print(f"Failed to fetch order {order_id}: {e}")
             return None
     
     def get_open_orders(self):
         """Get all open orders."""
         if config.MODE == "paper":
-            logger.info("Paper trading: No open orders")
+            print("Paper trading: No open orders")
             return []
         
         try:
             orders = self.exchange.fetch_open_orders(self.symbol)
             return orders
         except Exception as e:
-            logger.error(f"Failed to fetch open orders: {e}")
+            print(f"Failed to fetch open orders: {e}")
             return []
     
     def set_leverage(self, leverage, symbol=None):
@@ -177,7 +177,7 @@ class Exchange:
         symbol = symbol or self.symbol
         
         if config.MODE == "paper":
-            logger.info(f"Paper trading: Set leverage to {leverage}x for {symbol}")
+            print(f"Paper trading: Set leverage to {leverage}x for {symbol}")
             return {"leverage": leverage, "symbol": symbol}
         
         try:
@@ -195,8 +195,8 @@ class Exchange:
                 self.exchange.options['defaultLeverage'] = leverage
                 result = {"leverage": leverage, "symbol": symbol}
             
-            logger.info(f"Set leverage to {leverage}x for {symbol}")
+            print(f"Set leverage to {leverage}x for {symbol}")
             return result
         except Exception as e:
-            logger.error(f"Failed to set leverage for {symbol}: {e}")
+            print(f"Failed to set leverage for {symbol}: {e}")
             return None 
