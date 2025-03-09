@@ -18,6 +18,9 @@ import matplotlib.pyplot as plt
 from pkg_resources import parse_version
 import sklearn
 
+# Add import for our model loader
+from model_loader import safe_load_model, fix_sklearn_modules
+
 class MLStrategy:
     """Machine Learning based trading strategy"""
     
@@ -33,6 +36,9 @@ class MLStrategy:
         
         # Create model directory if it doesn't exist
         os.makedirs(model_dir, exist_ok=True)
+        
+        # Apply fixes immediately
+        fix_sklearn_modules()
         
         # Try to load existing model
         self.load_model()
@@ -449,37 +455,24 @@ class MLStrategy:
         """Load model from disk with version compatibility check"""
         try:
             if os.path.exists(self.model_file):
-                # Check if version info exists and if it's compatible
-                current_version = sklearn.__version__
-                saved_version = None
+                # Use our safe loader
+                self.model = safe_load_model(self.model_file)
                 
-                if os.path.exists(self.model_version_file):
-                    with open(self.model_version_file, 'r') as f:
-                        saved_version = f.read().strip()
-                
-                if saved_version and parse_version(saved_version) > parse_version(current_version):
-                    self.logger.warning(
-                        f"Model was trained with newer scikit-learn version ({saved_version}) "
-                        f"than current version ({current_version}). "
-                        f"This might cause compatibility issues. "
-                        f"Consider retraining the model with the current scikit-learn version."
-                    )
-                    # Filter out specific scikit-learn InconsistentVersionWarning
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings("ignore", category=UserWarning, 
-                                               message=".*Trying to unpickle estimator.*")
-                        self.model = joblib.load(self.model_file)
+                if self.model:
+                    self.logger.info(f"Model loaded from {self.model_file}")
+                    # Check version info
+                    if os.path.exists(self.model_version_file):
+                        with open(self.model_version_file, 'r') as f:
+                            saved_version = f.read().strip()
+                            self.logger.info(f"Model was trained with scikit-learn version: {saved_version}")
+                    return True
                 else:
-                    # Load normally
-                    self.model = joblib.load(self.model_file)
-                
-                self.logger.info(f"Model loaded from {self.model_file}")
-                if saved_version:
-                    self.logger.info(f"Model was trained with scikit-learn version: {saved_version}")
-                return True
+                    self.logger.error(f"Failed to load model from {self.model_file}")
+                    return False
             else:
                 self.logger.info(f"No existing model found at {self.model_file}")
                 return False
         except Exception as e:
             self.logger.error(f"Error loading model: {e}")
             return False
+

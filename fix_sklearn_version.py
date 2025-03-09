@@ -5,6 +5,7 @@ import sys
 import argparse
 import subprocess
 import logging
+import shutil
 
 # Set up logging
 logging.basicConfig(
@@ -48,11 +49,66 @@ def install_sklearn_version(version):
     """Install specified scikit-learn version."""
     logger.info(f"Installing scikit-learn version {version}")
     try:
+        # First uninstall current version to avoid conflicts
+        subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", "scikit-learn"])
+        
+        # Then install the specified version
         subprocess.check_call([sys.executable, "-m", "pip", "install", f"scikit-learn=={version}"])
+        
         logger.info(f"Successfully installed scikit-learn {version}")
         return True
     except subprocess.SubprocessError as e:
         logger.error(f"Failed to install scikit-learn {version}: {e}")
+        return False
+
+def backup_models(models_dir='models', backup_dir='models_backup'):
+    """Backup model files before making changes."""
+    if not os.path.exists(models_dir):
+        logger.warning(f"Models directory '{models_dir}' not found, nothing to backup")
+        return False
+    
+    try:
+        # Create backup directory if it doesn't exist
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+            
+        # Count backed up files
+        count = 0
+        for file in os.listdir(models_dir):
+            if file.endswith('_model.pkl'):
+                source = os.path.join(models_dir, file)
+                dest = os.path.join(backup_dir, file)
+                shutil.copy2(source, dest)
+                count += 1
+                
+        if count > 0:
+            logger.info(f"Successfully backed up {count} model files to {backup_dir}")
+        else:
+            logger.info("No model files found to backup")
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error backing up model files: {e}")
+        return False
+
+def fix_missing_loss_module():
+    """Fix specific '_loss' module missing error."""
+    try:
+        import sklearn
+        # The _loss module is in sklearn.neural_network in newer versions
+        # but older code might be looking for it elsewhere
+        if not hasattr(sklearn, '_loss'):
+            # Try checking if the neural_network module has it
+            from sklearn.neural_network import _loss
+            # Make it accessible from the sklearn namespace
+            sklearn._loss = _loss
+            logger.info("Fixed missing '_loss' module reference")
+        return True
+    except ImportError:
+        logger.error("Could not fix '_loss' module - neural_network module might be missing")
+        return False
+    except Exception as e:
+        logger.error(f"Error fixing '_loss' module: {e}")
         return False
 
 def main():
@@ -60,7 +116,32 @@ def main():
     parser.add_argument('--version', help='Specific scikit-learn version to install')
     parser.add_argument('--check-only', action='store_true', help='Only check versions without installing')
     parser.add_argument('--models-dir', default='models', help='Directory containing model files')
+    parser.add_argument('--backup', action='store_true', help='Backup model files before making changes')
+    parser.add_argument('--fix-loss-module', action='store_true', help="Fix missing '_loss' module error")
+    parser.add_argument('--force-retrain', action='store_true', help='Force retraining with current sklearn version')
     args = parser.parse_args()
+    
+    if args.backup:
+        backup_models(args.models_dir)
+    
+    if args.fix_loss_module:
+        if fix_missing_loss_module():
+            logger.info("Applied fix for missing '_loss' module")
+        return
+    
+    if args.force_retrain:
+        logger.info("Forcing retraining of models with current scikit-learn version")
+        # Remove or rename old model files to force retraining
+        if os.path.exists(args.models_dir):
+            for file in os.listdir(args.models_dir):
+                if file.endswith('_model.pkl'):
+                    try:
+                        deprecated_file = os.path.join(args.models_dir, f"{file}.deprecated")
+                        os.rename(os.path.join(args.models_dir, file), deprecated_file)
+                        logger.info(f"Renamed {file} to {file}.deprecated to force retraining")
+                    except Exception as e:
+                        logger.error(f"Error renaming model file {file}: {e}")
+        return
     
     current_version = check_sklearn_version()
     
