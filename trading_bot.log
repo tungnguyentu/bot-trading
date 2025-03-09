@@ -1,0 +1,38 @@
+2025-03-09 11:03:19,284 - INFO - Starting Binance Trading Bot
+2025-03-09 11:03:19,284 - INFO - Running in TEST MODE - No real trades will be executed
+2025-03-09 11:03:19,645 - INFO - Telegram bot initialized successfully
+2025-03-09 11:03:21,151 - INFO - Running in TEST MODE. No real trades will be executed.
+2025-03-09 11:03:21,151 - INFO - Starting the trading bot for SOLUSDT
+2025-03-09 11:03:21,152 - INFO - [TEST MODE] Initial balance: $1000.00 USDT, 0.0 SOL
+2025-03-09 11:03:21,691 - INFO - Current SOLUSDT price: 137.9
+2025-03-09 11:04:21,826 - INFO - Current SOLUSDT price: 137.89
+2025-03-09 11:05:22,028 - INFO - Current SOLUSDT price: 137.93
+2025-03-09 11:06:22,281 - INFO - Current SOLUSDT price: 137.89
+2025-03-09 11:07:22,440 - INFO - Current SOLUSDT price: 137.99
+2025-03-09 11:08:22,619 - INFO - Current SOLUSDT price: 138.17
+2025-03-09 11:09:22,868 - INFO - Current SOLUSDT price: 138.05
+2025-03-09 11:09:57,926 - INFO - Bot stopped by user
+2025-03-09 11:10:00,902 - INFO - Starting Binance Trading Bot
+2025-03-09 11:10:00,902 - INFO - Running in TEST MODE - No real trades will be executed
+2025-03-09 11:10:01,126 - INFO - Telegram bot initialized successfully
+2025-03-09 11:10:01,991 - INFO - Running in TEST MODE. No real trades will be executed.
+2025-03-09 11:10:01,991 - INFO - Starting the trading bot for SOLUSDT
+2025-03-09 11:10:01,992 - INFO - [TEST MODE] Initial balance: $1000.00 USDT, 0.0 SOL
+2025-03-09 11:10:02,493 - INFO - Current SOLUSDT price: 137.94
+2025-03-09 11:11:02,684 - INFO - Current SOLUSDT price: 137.85
+2025-03-09 11:12:02,942 - INFO - Current SOLUSDT price: 137.97
+2025-03-09 11:13:03,071 - INFO - Current SOLUSDT price: 137.95
+2025-03-09 11:14:03,240 - INFO - Current SOLUSDT price: 138.0
+2025-03-09 11:15:03,503 - INFO - Current SOLUSDT price: 138.06
+2025-03-09 11:16:03,635 - INFO - Current SOLUSDT price: 138.01
+2025-03-09 11:17:03,831 - INFO - Current SOLUSDT price: 138.14
+2025-03-09 11:18:04,082 - INFO - Current SOLUSDT price: 138.13
+2025-03-09 11:19:04,221 - INFO - Current SOLUSDT price: 137.97
+2025-03-09 11:20:04,424 - INFO - Current SOLUSDT price: 137.93
+2025-03-09 11:21:04,678 - INFO - Current SOLUSDT price: 137.83
+2025-03-09 11:22:04,810 - INFO - Current SOLUSDT price: 137.86
+2025-03-09 11:23:04,994 - INFO - Current SOLUSDT price: 137.81
+2025-03-09 11:24:05,304 - INFO - Current SOLUSDT price: 137.81
+2025-03-09 11:25:05,441 - INFO - Current SOLUSDT price: 137.91
+2025-03-09 11:26:05,613 - INFO - Current SOLUSDT price: 137.88
+2025-03-09 11:27:04,097 - INFO - Bot stopped by user
