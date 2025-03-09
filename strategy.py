@@ -58,8 +58,10 @@ class Strategy(ABC):
         """Get market data with indicators."""
         df = self.exchange.get_ohlcv(self.symbol, self.timeframe, limit)
         if df is None:
-            print("Failed to get market data")
+            print("❌ Failed to get market data")
             return None
+        
+        print(f"📊 Fetched {len(df)} candles for {self.symbol}")
         return df
     
     def calculate_position_size(self, price):
@@ -279,9 +281,16 @@ class Strategy(ABC):
         signal = latest.get('signal')
         price = latest['close']
         
+        # Show signal information
+        if signal:
+            print(f"🎯 Signal generated: {signal.upper()} at {price}")
+        else:
+            print(f"🔍 No signal generated at current price {price}")
+        
         # Check stop loss / take profit
         sl_tp_result = self.check_stop_loss_take_profit(price)
         if sl_tp_result:
+            print(f"⚠️ {sl_tp_result.upper()} triggered at {price}")
             return {'type': sl_tp_result, 'price': price}
         
         # Send signal notification if enabled
@@ -678,4 +687,4 @@ def get_strategy(strategy_name, exchange):
         print(f"Unknown strategy: {strategy_name}")
         return None
     
-    return strategy_class(exchange) 
+    return strategy_class(exchange)

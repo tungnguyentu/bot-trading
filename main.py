@@ -37,9 +37,34 @@ def run_bot(exchange, strategy_name=None):
         print(f"Unknown strategy: {strategy_name}")
         return None
     
+    # Get current market data for information
+    symbol = config.SYMBOL
+    current_price = None
+    try:
+        ticker = exchange.get_ticker(symbol)
+        if ticker:
+            current_price = ticker.get('last', None)
+            print(f"💹 Current {symbol} price: {current_price}")
+    except Exception as e:
+        print(f"❌ Failed to get current price: {e}")
+    
     # Run strategy
-    print(f"Running strategy: {strategy_name}")
+    print(f"⚙️ Running strategy: {strategy_name}")
     result = strategy.run()
+    
+    # Show result information
+    if result:
+        print(f"✅ Order executed: {result}")
+    else:
+        print(f"ℹ️ No trade signal or no trade executed")
+    
+    # Always show current position state
+    if hasattr(strategy, 'position') and strategy.position:
+        print(f"📊 Current position: {strategy.position} (entry: {strategy.entry_price})")
+    else:
+        print(f"📊 Current position: None")
+        
+    print("-" * 50)  # Visual separator for each run
     
     return result
 
@@ -53,11 +78,21 @@ def schedule_bot(interval=1):
     exchange = Exchange()
     
     def job():
-        print(f"Running scheduled job at {datetime.now()}")
+        print(f"\n🕒 Running scheduled job at {datetime.now()}")
         run_bot(exchange)
     
     # Schedule the job
     schedule.every(interval).minutes.do(job)
+    
+    print(f"⏰ Bot scheduled to run every {interval} minute(s)")
+    print(f"📈 Trading {config.SYMBOL} on {config.EXCHANGE}")
+    print(f"🤖 Using {config.STRATEGY} strategy")
+    if config.USE_FIXED_POSITION_SIZE:
+        quote_currency = config.SYMBOL.split('/')[1]
+        print(f"💰 Fixed position size: {config.FIXED_POSITION_SIZE} {quote_currency}")
+    if config.LEVERAGE > 1:
+        print(f"⚠️ Using leverage: {config.LEVERAGE}x")
+    print("-" * 50)  # Visual separator
     
     # Run the job immediately
     job()
@@ -353,4 +388,4 @@ def main():
         parser.print_help()
 
 if __name__ == '__main__':
-    main() 
+    main()
