@@ -3,6 +3,7 @@ import numpy as np
 import joblib
 import os
 import logging
+import warnings
 from datetime import datetime
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
 from sklearn.preprocessing import StandardScaler, RobustScaler
@@ -12,6 +13,10 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.neural_network import MLPClassifier
 from sklearn.feature_selection import SelectFromModel
 import matplotlib.pyplot as plt
+
+# Add these imports for version checking
+from pkg_resources import parse_version
+import sklearn
 
 class MLStrategy:
     """Machine Learning based trading strategy"""
@@ -24,6 +29,7 @@ class MLStrategy:
         self.logger = logging.getLogger('MLStrategy')
         self.model_file = os.path.join(model_dir, f'{symbol}_model.pkl')
         self.feature_importance_file = os.path.join(model_dir, f'{symbol}_feature_importance.png')
+        self.model_version_file = os.path.join(model_dir, f'{symbol}_model_version.txt')
         
         # Create model directory if it doesn't exist
         os.makedirs(model_dir, exist_ok=True)
@@ -306,6 +312,15 @@ class MLStrategy:
         self.logger.info("Fitting final model...")
         self.model.fit(X_train, y_train)
         
+        # Save sklearn version info with the model
+        current_sklearn_version = sklearn.__version__
+        try:
+            with open(self.model_version_file, 'w') as f:
+                f.write(current_sklearn_version)
+            self.logger.info(f"Saved model with sklearn version: {current_sklearn_version}")
+        except Exception as e:
+            self.logger.warning(f"Could not save model version info: {e}")
+        
         # Evaluate the model
         y_pred = self.model.predict(X_test)
         y_prob = self.model.predict_proba(X_test)[:, 1]  # Probability of class 1
@@ -422,15 +437,45 @@ class MLStrategy:
             try:
                 joblib.dump(self.model, self.model_file)
                 self.logger.info(f"Model saved to {self.model_file}")
+                
+                # Save current sklearn version
+                current_sklearn_version = sklearn.__version__
+                with open(self.model_version_file, 'w') as f:
+                    f.write(current_sklearn_version)
             except Exception as e:
                 self.logger.error(f"Error saving model: {e}")
     
     def load_model(self):
-        """Load model from disk"""
+        """Load model from disk with version compatibility check"""
         try:
             if os.path.exists(self.model_file):
-                self.model = joblib.load(self.model_file)
+                # Check if version info exists and if it's compatible
+                current_version = sklearn.__version__
+                saved_version = None
+                
+                if os.path.exists(self.model_version_file):
+                    with open(self.model_version_file, 'r') as f:
+                        saved_version = f.read().strip()
+                
+                if saved_version and parse_version(saved_version) > parse_version(current_version):
+                    self.logger.warning(
+                        f"Model was trained with newer scikit-learn version ({saved_version}) "
+                        f"than current version ({current_version}). "
+                        f"This might cause compatibility issues. "
+                        f"Consider retraining the model with the current scikit-learn version."
+                    )
+                    # Filter out specific scikit-learn InconsistentVersionWarning
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings("ignore", category=UserWarning, 
+                                               message=".*Trying to unpickle estimator.*")
+                        self.model = joblib.load(self.model_file)
+                else:
+                    # Load normally
+                    self.model = joblib.load(self.model_file)
+                
                 self.logger.info(f"Model loaded from {self.model_file}")
+                if saved_version:
+                    self.logger.info(f"Model was trained with scikit-learn version: {saved_version}")
                 return True
             else:
                 self.logger.info(f"No existing model found at {self.model_file}")

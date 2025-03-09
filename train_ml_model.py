@@ -175,14 +175,27 @@ def generate_validation_chart(df, ml_strategy, symbol, target_horizon):
         logger.error(traceback.format_exc())
 
 def main():
+    # Add scikit-learn version check
+    import sklearn
+    logger.info(f"Current scikit-learn version: {sklearn.__version__}")
+
     parser = argparse.ArgumentParser(description='Train ML model for trading')
     parser.add_argument('--symbol', default=TRADING_SYMBOL, help=f'Symbol to train for (default: {TRADING_SYMBOL})')
     parser.add_argument('--days', type=int, default=180, help='Number of days of historical data to use (default: 180)')
     parser.add_argument('--test-size', type=float, default=0.2, help='Proportion of data to use for testing (default: 0.2)')
     parser.add_argument('--target-horizon', type=int, default=5, help='Forward periods for prediction target (default: 5)')
     parser.add_argument('--param-search', action='store_true', help='Perform hyperparameter search')
+    parser.add_argument('--retrain', action='store_true', help='Force retraining of model even if one exists')
+    parser.add_argument('--ignore-warnings', action='store_true', help='Ignore sklearn version warnings')
     
     args = parser.parse_args()
+    
+    # Set warning filtering if specified
+    if args.ignore_warnings:
+        import warnings
+        from sklearn.exceptions import InconsistentVersionWarning
+        warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+        logger.info("Ignoring sklearn InconsistentVersionWarning")
     
     metrics = train_model(
         symbol=args.symbol, 
