@@ -5,6 +5,7 @@ import logging
 import warnings
 import joblib
 import importlib
+import pickle  # Add missing import
 from pkg_resources import parse_version
 
 logger = logging.getLogger('ModelLoader')
