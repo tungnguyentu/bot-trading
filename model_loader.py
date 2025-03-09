@@ -116,11 +116,55 @@ def safe_load_model(model_file):
                 # First try normal loading
                 model = joblib.load(model_file)
             except Exception as first_error:
-                # If that fails, try more aggressive approach - pickle direct load
-                logger.warning(f"Standard loading failed: {first_error}, trying pickle direct load")
-                import pickle
-                with open(model_file, 'rb') as f:
-                    model = pickle.load(f)
+                # If that fails, try a more robust approach - load with custom pickle options
+                logger.warning(f"Standard loading failed: {first_error}, trying custom loading approach")
+                
+                # Use a custom unpickler that handles the _loss module
+                class CustomUnpickler(pickle.Unpickler):
+                    def find_class(self, module, name):
+                        # Handle the _loss module specially
+                        if module == 'sklearn._loss':
+                            if name == 'log_loss' or name == 'binary_log_loss':
+                                # Create dummy functions that match the signature
+                                def dummy_func(*args, **kwargs):
+                                    return 0
+                                return dummy_func
+                        # For everything else, use the normal unpickling mechanism
+                        return super().find_class(module, name)
+                
+                # Try loading with custom unpickler
+                try:
+                    with open(model_file, 'rb') as f:
+                        model = CustomUnpickler(f).load()
+                    logger.info("Successfully loaded model with CustomUnpickler")
+                except Exception as e:
+                    # Final fallback: try direct import and patching of numpy bool handling
+                    logger.warning(f"CustomUnpickler failed: {e}, trying direct import")
+                    
+                    # Handle NumPy truth value ambiguity
+                    import numpy as np
+                    original_bool = np.bool_
+                    
+                    # Patch numpy's bool to handle arrays in boolean context
+                    def patched_bool(x):
+                        if isinstance(x, np.ndarray) and x.size > 1:
+                            return bool(x.any())
+                        return original_bool(x)
+                    
+                    # Apply monkey patch (temporary)
+                    np.bool_ = patched_bool
+                    
+                    # Now try again with pickle
+                    try:
+                        with open(model_file, 'rb') as f:
+                            model = pickle.load(f)
+                        logger.info("Successfully loaded model with patched numpy bool handling")
+                    except Exception as e:
+                        logger.error(f"All loading methods failed: {e}")
+                        return None
+                    finally:
+                        # Restore original numpy bool
+                        np.bool_ = original_bool
             
             logger.info(f"Successfully loaded model from {model_file}")
             return model

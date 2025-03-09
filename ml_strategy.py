@@ -473,6 +473,12 @@ class MLStrategy:
                 self.logger.info(f"No existing model found at {self.model_file}")
                 return False
         except Exception as e:
+            # Provide more detailed error information
             self.logger.error(f"Error loading model: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            
+            # Force retraining by returning False
+            self.logger.info("Will train a new model due to loading error")
             return False
 
