@@ -45,6 +45,12 @@ def run_bot(exchange, strategy_name=None):
         if ticker:
             current_price = ticker.get('last', None)
             print(f"💹 Current {symbol} price: {current_price}")
+            
+            # Add 24h change information if available
+            if 'percentage' in ticker:
+                change_24h = ticker['percentage']
+                change_emoji = "🟢" if change_24h >= 0 else "🔴"
+                print(f"{change_emoji} 24h change: {change_24h:.2f}%")
     except Exception as e:
         print(f"❌ Failed to get current price: {e}")
     
@@ -60,7 +66,20 @@ def run_bot(exchange, strategy_name=None):
     
     # Always show current position state
     if hasattr(strategy, 'position') and strategy.position:
-        print(f"📊 Current position: {strategy.position} (entry: {strategy.entry_price})")
+        # Calculate profit/loss
+        if current_price and strategy.entry_price:
+            pnl_pct = (current_price - strategy.entry_price) / strategy.entry_price * 100
+            pnl_emoji = "🟢" if pnl_pct >= 0 else "🔴"
+            print(f"📊 Current position: {strategy.position} (entry: {strategy.entry_price}) {pnl_emoji} {pnl_pct:.2f}%")
+            
+            # Show stop loss and take profit targets
+            sl_price = strategy.entry_price * (1 - strategy.stop_loss)
+            tp_price = strategy.entry_price * (1 + strategy.take_profit)
+            sl_distance = ((current_price - sl_price) / current_price) * 100
+            tp_distance = ((tp_price - current_price) / current_price) * 100
+            
+            print(f"⚠️ Stop loss: {sl_price:.2f} ({sl_distance:.2f}% away)")
+            print(f"💰 Take profit: {tp_price:.2f} ({tp_distance:.2f}% away)")
     else:
         print(f"📊 Current position: None")
         
@@ -370,6 +389,15 @@ def main():
     train_parser.add_argument('--trials', type=int, default=config.ML_HYPERPARAMETER_TRIALS, help='Number of trials for hyperparameter tuning')
     train_parser.add_argument('--cpu-only', action='store_true', help='Use CPU only for training (optimize for CPU)')
     
+    # Debug command
+    debug_parser = subparsers.add_parser('debug', help='Debug a strategy')
+    debug_parser.add_argument('strategy', type=str, default=config.STRATEGY, help='Strategy to debug')
+    debug_parser.add_argument('--symbol', type=str, help='Trading pair symbol')
+    debug_parser.add_argument('--timeframe', type=str, help='Timeframe (1m, 5m, 15m, 1h, etc.)')
+    debug_parser.add_argument('--limit', type=int, default=100, help='Number of candles to analyze')
+    debug_parser.add_argument('--no-plot', dest='plot', action='store_false', help='Disable plotting')
+    debug_parser.set_defaults(plot=True)
+    
     args = parser.parse_args()
     
     # Set symbol if specified
@@ -384,6 +412,10 @@ def main():
         run_paper_cmd(args)
     elif args.command == 'train':
         train_ml_model_cmd(args)
+    elif args.command == 'debug':
+        # Import here to avoid circular imports
+        from debug_strategy import analyze_strategy
+        analyze_strategy(args.strategy, args.symbol, args.timeframe, args.limit, args.plot)
     else:
         parser.print_help()
 
