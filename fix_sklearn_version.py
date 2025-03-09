@@ -92,23 +92,60 @@ def backup_models(models_dir='models', backup_dir='models_backup'):
         return False
 
 def fix_missing_loss_module():
-    """Fix specific '_loss' module missing error."""
+    """Fix specific '_loss' module missing error by creating a replacement module."""
     try:
         import sklearn
-        # The _loss module is in sklearn.neural_network in newer versions
-        # but older code might be looking for it elsewhere
-        if not hasattr(sklearn, '_loss'):
-            # Try checking if the neural_network module has it
+        
+        # Check if _loss already exists
+        if hasattr(sklearn, '_loss'):
+            logger.info("_loss module already exists, no fix needed")
+            return True
+            
+        try:
+            # First try importing from neural_network in newer versions
             from sklearn.neural_network import _loss
-            # Make it accessible from the sklearn namespace
             sklearn._loss = _loss
-            logger.info("Fixed missing '_loss' module reference")
-        return True
-    except ImportError:
-        logger.error("Could not fix '_loss' module - neural_network module might be missing")
-        return False
+            logger.info("Fixed missing '_loss' module reference using sklearn.neural_network._loss")
+            return True
+        except ImportError:
+            # If that fails, create our own minimal version of the _loss module
+            logger.info("Creating custom _loss module replacement")
+            
+            # Create a minimal _loss module with the required functions
+            class DummyLossModule:
+                @staticmethod
+                def log_loss(y_true, y_prob, eps=1e-15, normalize=True, sample_weight=None, labels=None):
+                    """Dummy log_loss function."""
+                    import numpy as np
+                    from sklearn.metrics import log_loss
+                    return log_loss(y_true, y_prob, eps=eps, normalize=normalize, 
+                                   sample_weight=sample_weight, labels=labels)
+                
+                @staticmethod
+                def binary_log_loss(y_true, y_prob, eps=1e-15):
+                    """Dummy binary_log_loss function."""
+                    import numpy as np
+                    return -np.sum(y_true * np.log(y_prob + eps) +
+                                  (1 - y_true) * np.log(1 - y_prob + eps))
+            
+            # Create an empty dummy module
+            import types
+            dummy_loss = types.ModuleType('_loss')
+            
+            # Add the required functions
+            dummy_loss.log_loss = DummyLossModule.log_loss
+            dummy_loss.binary_log_loss = DummyLossModule.binary_log_loss
+            
+            # Attach it to sklearn
+            sklearn._loss = dummy_loss
+            
+            logger.info("Created custom _loss module and attached to sklearn")
+            return True
+            
     except Exception as e:
         logger.error(f"Error fixing '_loss' module: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return False
 
 def main():

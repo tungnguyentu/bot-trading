@@ -17,16 +17,56 @@ def fix_sklearn_modules():
         if not hasattr(sklearn, '_loss'):
             try:
                 # Try to find _loss in neural_network (newer versions)
-                from sklearn.neural_network import _loss
-                sklearn._loss = _loss
-                logger.info("Fixed '_loss' module reference")
-            except ImportError:
-                pass
+                try:
+                    from sklearn.neural_network import _loss
+                    sklearn._loss = _loss
+                    logger.info("Fixed '_loss' module reference using neural_network._loss")
+                except ImportError:
+                    # Create our own minimal version
+                    logger.info("Creating custom _loss module replacement")
+                    
+                    class DummyLossModule:
+                        @staticmethod
+                        def log_loss(y_true, y_prob, eps=1e-15, normalize=True, sample_weight=None, labels=None):
+                            """Dummy log_loss function."""
+                            import numpy as np
+                            from sklearn.metrics import log_loss
+                            return log_loss(y_true, y_prob, eps=eps, normalize=normalize, 
+                                          sample_weight=sample_weight, labels=labels)
+                        
+                        @staticmethod
+                        def binary_log_loss(y_true, y_prob, eps=1e-15):
+                            """Dummy binary_log_loss function."""
+                            import numpy as np
+                            return -np.sum(y_true * np.log(y_prob + eps) +
+                                          (1 - y_true) * np.log(1 - y_prob + eps))
+                    
+                    # Create an empty dummy module
+                    import types
+                    dummy_loss = types.ModuleType('_loss')
+                    
+                    # Add the required functions
+                    dummy_loss.log_loss = DummyLossModule.log_loss
+                    dummy_loss.binary_log_loss = DummyLossModule.binary_log_loss
+                    
+                    # Attach it to sklearn
+                    sklearn._loss = dummy_loss
+                    logger.info("Created custom _loss module and attached to sklearn")
+            except Exception as e:
+                logger.error(f"Failed to create loss module: {e}")
+                return False
         
-        # Check if we need to fix other modules...
+        # Fix for other potential missing modules
+        if not hasattr(sklearn, 'utils'):
+            import types
+            sklearn.utils = types.ModuleType('utils')
+            logger.info("Created utils module for sklearn")
+            
         return True
     except Exception as e:
         logger.error(f"Error applying sklearn fixes: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return False
 
 def monkey_patch_joblib():
@@ -60,16 +100,34 @@ def safe_load_model(model_file):
     
     try:
         # Apply fixes before loading
-        fix_sklearn_modules()
-        monkey_patch_joblib()
+        if not fix_sklearn_modules():
+            logger.warning("Failed to apply sklearn module fixes")
         
+        if not monkey_patch_joblib():
+            logger.warning("Failed to monkey patch joblib")
+        
+        # Attempt to load with all warnings suppressed
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning)
-            model = joblib.load(model_file)
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            warnings.filterwarnings("ignore", message=".*sklearn version.*")
+            
+            try:
+                # First try normal loading
+                model = joblib.load(model_file)
+            except Exception as first_error:
+                # If that fails, try more aggressive approach - pickle direct load
+                logger.warning(f"Standard loading failed: {first_error}, trying pickle direct load")
+                import pickle
+                with open(model_file, 'rb') as f:
+                    model = pickle.load(f)
+            
             logger.info(f"Successfully loaded model from {model_file}")
             return model
     except Exception as e:
         logger.error(f"Error loading model: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return None
 
 def get_model_version(version_file):
